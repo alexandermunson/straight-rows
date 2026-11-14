@@ -386,7 +386,8 @@ function drawBase() {
   // panel titles: horizontal, in the row above each panel (never over the data), same place on every panel
   c.font = '600 11px ' + SANS; c.textBaseline = 'bottom'; c.textAlign = 'left'; c.fillStyle = css('--ink-2');
   rects.forEach((r, pi) => c.fillText(PANELS[pi][0], r.x, r.y - 4));
-  $('status').textContent = res ? `${res} s bins · ${new Date(EPOCH + t0 * 1000).toISOString().slice(0, 16)}Z → ${new Date(EPOCH + t1 * 1000).toISOString().slice(0, 16)}Z` : 'loading…';
+  const anyEv = M && M.events.some(e => inView(e) && ((e.kind === 'DET' && S.dets) || (e.kind === 'TRUTH' && S.truth)));
+  $('status').textContent = res ? `${res} s bins · ${new Date(EPOCH + t0 * 1000).toISOString().slice(0, 16)}Z → ${new Date(EPOCH + t1 * 1000).toISOString().slice(0, 16)}Z` + (anyEv ? '' : ' · no events in view') : 'loading…';
 }
 
 function drawSDA(c, r, fy, t0, t1, xOf, y0, y1) {
@@ -613,7 +614,7 @@ function renderOps() {
   M.tractors.forEach((tr, ti) => {
     h += `<div class="lane"><span><i class="sw" style="background:${tvar(ti)}"></i>${tr}</span><div class="track">` +
       evs.filter(([e]) => e.tr.includes(tr)).map(([e, i]) => { const a = Math.max(e.s, d0), b = Math.min(e.e, d1);
-        return `<a data-card="${tr}-${i}" title="${hm(e.s)}–${hm(e.e)}Z · ${esc(e.ops.head)}" style="left:${((a - d0) / 864).toFixed(2)}%;width:${((b - a) / 864).toFixed(2)}%;background:${cvar(e.cls)}"></a>`; }).join('') +
+        return `<a data-card="${tr}-${i}" tabindex="0" role="button" aria-label="${tr} ${hm(e.s)} to ${hm(e.e)} UTC, ${esc(e.ops.head)}" title="${hm(e.s)}–${hm(e.e)}Z · ${esc(e.ops.head)}" style="left:${((a - d0) / 864).toFixed(2)}%;width:${((b - a) / 864).toFixed(2)}%;background:${cvar(e.cls)}"></a>`; }).join('') +
       '</div></div>';
   });
   h += '<div class="hours"><span></span><div>' + [0, 3, 6, 9, 12, 15, 18, 21, 24].map(x => `<span>${pad2(x % 24)}Z</span>`).join('') + '</div></div></div>';
@@ -656,7 +657,10 @@ function renderOps() {
   const el = $('ops'); el.innerHTML = h;
   el.querySelectorAll('button[data-day]').forEach(b => b.onclick = () => { OPS.day = +b.dataset.day; renderOps(); });
   el.querySelectorAll('button[data-ev]').forEach(b => b.onclick = () => { showTab(false); select(+b.dataset.ev, true); });
-  el.querySelectorAll('a[data-card]').forEach(a => a.onclick = () => { const c = document.getElementById('card-' + a.dataset.card); if (c) { c.open = true; c.scrollIntoView({behavior: 'smooth', block: 'center'}); } });
+  el.querySelectorAll('a[data-card]').forEach(a => {
+    a.onclick = () => { const c = document.getElementById('card-' + a.dataset.card); if (c) { c.open = true; c.scrollIntoView({behavior: 'smooth', block: 'center'}); } };
+    a.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); a.onclick(); const c = document.getElementById('card-' + a.dataset.card); if (c) c.querySelector('summary').focus({preventScroll: true}); } };
+  });
   if (OPS.open) { const c = el.querySelector('details.card'); if (c) c.open = true; }
 }
 
@@ -706,8 +710,12 @@ function buildList() {
       (det ? (e.label ? `<span class="lab" title="matches the labelled episode ${e.label}">✓ ${e.label}</span>` : '') : `<span class="lab miss" title="a labelled episode that nothing detected">${e.id} missed</span>`) + `</div>` +
       `<div class="l2"><small>${det ? e.id + ' · ' : ''}${fmtT(e.s).slice(3)} · ${dur < 1 ? (dur * 60).toFixed(0) + 's' : dur >= 90 ? (dur / 60).toFixed(1) + 'h' : dur.toFixed(0) + 'm'}</small>` +
       (det ? `<span class="pill" title="confidence">${e.conf.toFixed(2)}</span>` : '') + `</div></div>`;
-    d.onclick = () => select(i, true); box.appendChild(d);
+    d.tabIndex = 0; d.setAttribute('role', 'button');
+    d.onclick = () => select(i, true);
+    d.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); select(i, true); } };
+    box.appendChild(d);
   }
+  if (!box.children.length) box.innerHTML = '<p class="empty">No events of this cause.</p>';
 }
 function select(i, go) {
   S.sel = i; const e = M.events[i];
@@ -725,6 +733,7 @@ function select(i, go) {
     h += `<div class="act">${esc(e.ops.head)}</div><p class="brief">${esc(e.ops.brief)}</p>` +
          `<div class="chips"><button id="toOps">See this in Operator actions</button></div>`;
   } else if (det) h += `<div class="act">${esc(e.action.replace(/_/g, ' ').toLowerCase())}</div>`;
+  if (det && !(e.why || []).length) h += `<p class="note">Plain-language reasoning comes from the detector and is not available when the viewer runs with <span class="mono">--submission</span>. The submitted evidence lines are below.</p>`;
   if ((e.why || []).length) {
     const main = ([hd]) => hd.startsWith('Why');
     h += e.why.filter(main).map(x => sec(x, true)).join('') +
