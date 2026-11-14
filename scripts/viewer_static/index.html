@@ -85,7 +85,7 @@ kbd{font:11px var(--mono);color:var(--ink-2);border:1px solid var(--line-2);bord
 #info .hd{display:flex;align-items:center;gap:8px}
 #info .hd h3{flex:1;margin:0;font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 #info .meta{color:var(--ink-3);font-size:12px;line-height:1.6;font-variant-numeric:tabular-nums;margin:4px 0 12px}
-.mono{font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums}
+.mono{font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap}
 #info .act{font-weight:600;margin:0 0 2px}
 #info .brief{margin:0 0 12px;color:var(--ink-2);line-height:1.5}
 #info .chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
@@ -101,39 +101,48 @@ h4.why{margin:12px 0 2px 15px;font-size:13px;font-weight:600} p.why{margin:0 0 4
 #tabs{display:flex;flex-direction:column;margin:0 -16px}
 #tabs button{border:0;border-radius:0;height:28px;text-align:left;padding:0 16px;font-size:13px;color:var(--ink-2)}
 #tabs button.on,#tabs button.on:hover{background:var(--sel);color:var(--ink);font-weight:600;box-shadow:inset 2px 0 0 var(--ink)}
-#ops,#spec{display:none;grid-column:2 / -1;background:var(--panel);border:1px solid var(--border);border-radius:8px;min-height:0;overflow:auto;padding:18px 22px}
+/* Operator actions and Spectral tabs */
+#ops,#spec{display:none;grid-column:2 / -1;min-height:0;overflow:auto;padding:20px 24px}
 body.ops main, body.ops section, body.spec main, body.spec section{display:none} body.ops #ops, body.spec #spec{display:block}
-body.ops aside>*:not(h1):not(#tabs), body.spec aside>*:not(h1):not(#tabs){display:none} body.ops #app, body.spec #app{grid-template-columns:180px minmax(0,1fr) 0}
-#ops .top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
-#ops h2{font-size:18px;text-transform:none;letter-spacing:0;color:var(--text);margin:0;flex:1}
-#ops .lanes{border:1px solid var(--border);border-radius:8px;padding:10px 14px 6px;margin-bottom:8px}
-#ops .lane{display:grid;grid-template-columns:34px 1fr;align-items:center;gap:8px;margin-bottom:6px;font-weight:700}
-#ops .track{position:relative;height:22px;background:var(--bg);border-radius:4px}
-#ops .track a{position:absolute;top:0;height:100%;border-radius:3px;cursor:pointer;opacity:.85;min-width:4px}
-#ops .track a:hover{opacity:1;outline:2px solid var(--text)}
-#ops .hours{display:grid;grid-template-columns:34px 1fr;gap:8px;font-size:10px;color:var(--muted)} #ops .hours div{display:flex;justify-content:space-between}
-#ops .key{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin:0 0 16px} #ops .key i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
-#ops .cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}
-#ops .col>h3{margin:0;font-size:15px} #ops .sum{color:var(--muted);font-size:12px;margin:2px 0 10px}
-details.card{border:1px solid var(--border);border-left-width:5px;border-radius:6px;margin:0 0 8px;background:var(--panel)}
-details.card[open]{box-shadow:0 2px 10px rgba(0,0,0,.08)}
-details.card>summary{list-style:none;cursor:pointer;padding:9px 11px;display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:start}
-details.card>summary::-webkit-details-marker{display:none}
-.card .when{font-size:11px;color:var(--muted);grid-column:1} .card .pill{grid-column:2;grid-row:1 / span 2;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;color:#fff;white-space:nowrap}
-.card .act{font-size:13.5px;font-weight:700;grid-column:1} .card .brief{grid-column:1 / -1;color:var(--muted);line-height:1.45;margin-top:2px}
-.card .body{padding:2px 11px 11px;border-top:1px solid var(--grid)}
-.card h5{margin:11px 0 2px;font-size:11px;font-weight:700;color:var(--text)} .card p{margin:0;line-height:1.55;color:var(--text)}
-.card .more{margin-top:10px} .card .more summary{cursor:pointer;color:var(--muted);font-size:12px} .card button{margin-top:10px}
-.ok{border:1px dashed var(--border);border-radius:6px;padding:7px 11px;margin:0 0 8px;color:var(--muted);font-size:12px;line-height:1.45}
-#ops table{border-collapse:collapse;margin:8px 0} #ops td,#ops th{border:1px solid var(--border);padding:3px 9px;text-align:left;font-size:12px}
-#ops details.trust{margin:0 0 16px;font-size:12px;color:var(--muted)} #ops details.trust summary{cursor:pointer} #ops details.trust div{max-width:100ch;line-height:1.5;margin-top:6px;color:var(--text)}
-#spec h2{font-size:18px;text-transform:none;letter-spacing:0;color:var(--text);margin:0;flex:1} #spec .top{display:flex;align-items:center;margin-bottom:8px}
-#spec h3{margin:20px 0 4px;font-size:15px} #spec .lead{max-width:100ch;line-height:1.55;margin:0 0 10px}
-#spec .ctl{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin:10px 0} #spec .trs{display:flex;gap:12px}
-#spec .sum{font-size:13px;margin:0 0 8px} #spec canvas{width:100%;display:block;border:1px solid var(--border);border-radius:6px}
-#spec table{border-collapse:collapse;margin:10px 0} #spec td,#spec th{border:1px solid var(--border);padding:3px 9px;text-align:left;font-size:12px}
-#spec details.trust{margin:0 0 8px;font-size:12px;color:var(--muted)} #spec details.trust summary{cursor:pointer} #spec details.trust div{max-width:100ch;line-height:1.5;margin-top:6px;color:var(--text)}
-#spec .key{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin:8px 0 0} #spec .key i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+body.ops aside>*:not(h1):not(#tabs), body.spec aside>*:not(h1):not(#tabs){display:none}
+body.ops #app, body.spec #app{grid-template-columns:200px minmax(0,1fr) 0}
+#ops .top,#spec .top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+#ops h2,#spec h2{font-size:15px;font-weight:600;color:var(--ink);margin:0;flex:1}
+#ops .lanes{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 0 8px;margin-bottom:12px}
+#ops .lane{display:grid;grid-template-columns:44px 1fr;align-items:center;gap:8px;margin-bottom:6px}
+#ops .lane>span{display:flex;align-items:center;gap:6px;font-weight:600;font-size:12px}
+#ops .track{position:relative;height:18px;background:var(--hover);border-radius:2px}
+#ops .track a{position:absolute;top:0;height:100%;border-radius:2px;cursor:pointer;min-width:4px}
+#ops .track a:hover,#ops .track a:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+#ops .hours{display:grid;grid-template-columns:44px 1fr;gap:8px;font:11px var(--mono);color:var(--ink-3);margin-top:2px} #ops .hours div{display:flex;justify-content:space-between}
+.key{display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:11px;color:var(--ink-3);margin:0 0 16px}
+.key i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+details.trust{margin:0 0 20px;color:var(--ink-2)}
+details.trust>div{max-width:100ch;line-height:1.55;margin:8px 0 0 15px;color:var(--ink)}
+#ops .cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;align-items:start}
+#ops .col>h3{margin:0;font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+#ops .sum{color:var(--ink-3);font-size:12px;margin:2px 0 8px}
+details.card{border-top:1px solid var(--line);border-left:2px solid var(--line-2);margin:0}
+details.card>summary{display:grid;grid-template-columns:12px 1fr auto;gap:2px 8px;align-items:start;padding:8px 0 8px 8px}
+details.card>summary::before{grid-column:1;grid-row:1;margin-top:5px}
+.card .when{grid-column:2;grid-row:1;font:11px/1.5 var(--mono);font-variant-numeric:tabular-nums;color:var(--ink-3)}
+.card .pill{grid-column:3;grid-row:1}
+.card .act{grid-column:2 / -1;font-weight:600}
+.card .brief{grid-column:2 / -1;color:var(--ink-2);line-height:1.45}
+.card .body{padding:0 0 12px 28px}
+.card h5{margin:12px 0 2px;font-size:12px;font-weight:600;color:var(--ink)} .card p{margin:0;line-height:1.55;color:var(--ink)}
+.card .more{margin-top:12px} .card .more>summary{color:var(--ink-2);font-size:12px} .card button{margin-top:12px}
+.ok{border-top:1px solid var(--line);padding:8px 0 0;margin:0;color:var(--ink-3);font-size:12px;line-height:1.5}
+.notice{max-width:72ch;border-left:2px solid var(--line-2);padding:4px 0 4px 12px;color:var(--ink-2);line-height:1.55;margin:16px 0}
+#ops table,#spec table{border-collapse:collapse;margin:8px 0;font-size:12px;font-variant-numeric:tabular-nums}
+#ops th,#spec th{text-align:left;font-weight:600;color:var(--ink-2);border-bottom:1px solid var(--line-2);padding:4px 16px 4px 0}
+#ops td,#spec td{text-align:left;border-bottom:1px solid var(--line);padding:4px 16px 4px 0}
+#spec td .sw{margin-right:6px;vertical-align:middle}
+#spec h3{margin:24px 0 4px;font-size:13px;font-weight:600}
+#spec .lead{max-width:100ch;line-height:1.55;margin:0 0 12px;color:var(--ink-2)}
+#spec .ctl{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin:12px 0} #spec .trs{display:flex;gap:16px}
+#spec .sum{font-size:13px;margin:0 0 8px;color:var(--ink-2)} #spec canvas{width:100%;display:block}
+#spec .key{margin:8px 0 0}
 .legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--ink-3);align-items:center}
 .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
 </style>
@@ -586,20 +595,29 @@ function renderOps() {
   const esc = s => String(s).replace(/[&<>]/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[ch]));
   const d0 = OPS.day * 86400, d1 = d0 + 86400, hm = t => fmtT(t, true).slice(-9, -4);
   const evs = M.events.map((e, i) => [e, i]).filter(([e]) => e.kind === 'DET' && e.ops && e.s < d1 && e.e > d0);
+  const noCards = !M.events.some(e => e.kind === 'DET' && e.ops);      // --submission mode: cards come only from the detector
   const dayName = ['05-04 (labelled)', '05-05 (labelled)', '05-06 (evaluation)'];
   const dur = m => m >= 90 ? (m / 60).toFixed(1) + ' h' : m.toFixed(0) + ' min';
   let h = `<div class="top"><h2>What each machine should do, and why</h2>` +
-    dayName.map((n, i) => `<button class="${i === OPS.day ? 'on' : ''}" data-day="${i}">${n}</button>`).join('') + `</div>`;
+    '<span class="seg">' + dayName.map((n, i) => `<button class="${i === OPS.day ? 'on' : ''}" data-day="${i}">${n}</button>`).join('') + `</span></div>`;
+  if (noCards) {
+    h += `<p class="notice">Operator cards are written by the detector itself. This viewer was started with <span class="mono">--submission</span>,
+      so it shows only the submitted detections and their evidence lines. Start it without <span class="mono">--submission</span>
+      (<span class="mono">make gui</span>) to see what each machine should do and why.</p>`;
+    const el = $('ops'); el.innerHTML = h;
+    el.querySelectorAll('button[data-day]').forEach(b => b.onclick = () => { OPS.day = +b.dataset.day; renderOps(); });
+    return;
+  }
   // day at a glance: one lane per machine, one block per action (click a block to open its card)
   h += '<div class="lanes">';
   M.tractors.forEach((tr, ti) => {
-    h += `<div class="lane"><span style="color:${TC[ti]}">${tr}</span><div class="track">` +
+    h += `<div class="lane"><span><i class="sw" style="background:${tvar(ti)}"></i>${tr}</span><div class="track">` +
       evs.filter(([e]) => e.tr.includes(tr)).map(([e, i]) => { const a = Math.max(e.s, d0), b = Math.min(e.e, d1);
-        return `<a data-card="${tr}-${i}" title="${hm(e.s)}–${hm(e.e)}Z · ${esc(e.ops.head)}" style="left:${((a - d0) / 864).toFixed(2)}%;width:${((b - a) / 864).toFixed(2)}%;background:${CLS[e.cls][0]}"></a>`; }).join('') +
+        return `<a data-card="${tr}-${i}" title="${hm(e.s)}–${hm(e.e)}Z · ${esc(e.ops.head)}" style="left:${((a - d0) / 864).toFixed(2)}%;width:${((b - a) / 864).toFixed(2)}%;background:${cvar(e.cls)}"></a>`; }).join('') +
       '</div></div>';
   });
   h += '<div class="hours"><span></span><div>' + [0, 3, 6, 9, 12, 15, 18, 21, 24].map(x => `<span>${pad2(x % 24)}Z</span>`).join('') + '</div></div></div>';
-  h += '<div class="key">' + ['SPACE_WEATHER', 'JAMMING', 'SPOOFING', 'EQUIPMENT_FAULT'].map(k => `<span><i style="background:${CLS[k][0]}"></i>${CLSNAME[k]}</span>`).join('') +
+  h += '<div class="key">' + ['SPACE_WEATHER', 'JAMMING', 'SPOOFING', 'EQUIPMENT_FAULT'].map(k => `<span><i style="background:${cvar(k)}"></i>${CLSNAME[k]}</span>`).join('') +
     '<span>Click a block or a card to open it. Machines are parked from about 03Z to 11Z.</span></div>';
   // confidence vs outcome, folded away
   const cal = M.calib || [], tot = cal.reduce((a, r) => a + r.n, 0), ok = cal.reduce((a, r) => a + r.right, 0);
@@ -615,13 +633,13 @@ function renderOps() {
     const iv = mine.map(([e]) => [Math.max(e.s, d0), Math.min(e.e, d1)]).sort((a, b) => a[0] - b[0]); let end = -1, stopped = 0;
     for (const [a, b] of iv) { if (b > end) { stopped += (b - Math.max(a, end)) / 60; end = b; } }
     const nmp = M.mp.filter(([t, s]) => t === ti && s >= d0 && s < d1).length;
-    h += `<div class="col"><h3 style="color:${TC[ti]}">${tr}</h3><p class="sum">` +
+    h += `<div class="col"><h3><i class="sw" style="background:${tvar(ti)}"></i>${tr}</h3><p class="sum">` +
       (mine.length ? `${mine.length} action${mine.length === 1 ? '' : 's'} · ${dur(stopped)} away from normal precision work` : 'No action needed this day') + '</p>';
     for (const [e, i] of mine) {
-      const o = e.ops, col = CLS[e.cls][0], sec = (t, x) => x ? `<h5>${t}</h5><p>${esc(x)}</p>` : '';
-      h += `<details class="card" id="card-${tr}-${i}" style="border-left-color:${col}"><summary>
+      const o = e.ops, sec = (t, x) => x ? `<h5>${t}</h5><p>${esc(x)}</p>` : '';
+      h += `<details class="card" id="card-${tr}-${i}" style="border-left-color:${cvar(e.cls)}"><summary>
           <span class="when">${hm(e.s)}–${hm(e.e)}Z · ${dur((e.e - e.s) / 60)} · ${CLSNAME[e.cls]}${e.tr.length > 1 ? ' · with ' + e.tr.filter(x => x !== tr).join(', ') : ''}</span>
-          <span class="pill" style="background:${col}" title="confidence">${e.conf.toFixed(2)}</span>
+          <span class="pill" title="confidence">${e.conf.toFixed(2)}</span>
           <span class="act">${esc(o.head)}</span><span class="brief">${esc(o.brief)}</span></summary>
         <div class="body">` +
         sec(`What ${tr} showed`, o.farm[tr]) + sec('How the field and the space-side feeds connect', o.link) + sec('What is uncertain', o.ambiguity) +
@@ -815,13 +833,13 @@ function buildSpec() {
       Each window has its average removed first, so a slow level change does not hide the repeats. Windows with missing samples are skipped. The PSD uses only times the tractor is working. Timing detail is traded for rate detail: a repeat cannot be placed more precisely than the window length.</div></details>
     <div class="ctl"><label>Signal <select id="spCh">${D.channels.map(([k, n]) => `<option value="${k}">${n}</option>`).join('')}</select></label>
       <label>Spectrum period <select id="spScope">${D.psd.scopes.map((s, i) => `<option value="${i}">${s}</option>`).join('')}</select></label>
-      <span class="trs">${names.map((t, i) => `<label style="color:${TC[i]};font-weight:700"><input type="checkbox" data-sp="${i}" checked>${t}</label>`).join('')}</span>
+      <span class="trs">${names.map((t, i) => `<label><input type="checkbox" data-sp="${i}" checked><i class="sw" style="background:${tvar(i)}"></i>${t}</label>`).join('')}</span>
       <label><input type="checkbox" id="spHarm" checked>mark the repeat rate and its overtones</label></div>
     <h3>Power spectrum</h3><div class="sum" id="spSum"></div>
     <canvas id="psdCv" style="height:300px" title="Hover to read a value"></canvas>
     <div id="spTable"></div>
     <h3>Spectrogram</h3>
-    <div class="ctl"><span>Tractor</span>${names.map((t, i) => `<button data-sptr="${i}" class="${i === SP.tr ? 'on' : ''}" style="${i === SP.tr ? '' : 'color:' + TC[i]}">${t}</button>`).join('')}</div>
+    <div class="ctl"><span>Tractor</span><span class="seg">${names.map((t, i) => `<button data-sptr="${i}" class="${i === SP.tr ? 'on' : ''}">${t}</button>`).join('')}</span></div>
     <canvas id="spgCv" style="height:360px" title="Hover to read a value"></canvas>
     <div class="key" id="spKey"></div>`;
   $('spCh').value = SP.ch; $('spScope').value = SP.scope;
@@ -832,7 +850,7 @@ function buildSpec() {
   $('spHarm').onchange = e => { SP.harm = e.target.checked; drawPsd(); };
   $('spec').querySelectorAll('button[data-sptr]').forEach(b => b.onclick = () => {
     SP.tr = +b.dataset.sptr;
-    $('spec').querySelectorAll('button[data-sptr]').forEach((o, i) => { o.classList.toggle('on', i === SP.tr); o.style.color = i === SP.tr ? '' : TC[i]; });
+    $('spec').querySelectorAll('button[data-sptr]').forEach((o, i) => { o.classList.toggle('on', i === SP.tr); });
     drawSpec();
   });
   const rel = (e, cv) => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
@@ -858,7 +876,7 @@ function fillSpecTable() {
     ? `${agree} of ${vis.length} tractors show a repeat every about ${(1000 / f0).toFixed(0)} s (${(1000 / f0 / 60).toFixed(1)} min), found from the peak and its overtones.`
     : 'No clear repeating pattern in this signal: the curve has no regular peaks, only a slow drift at the far left.';
   $('spTable').innerHTML = `<table><tr><th>Tractor</th><th>Repeat period</th><th>Peak strength (dB above the curve's typical level)</th><th>Time analysed</th></tr>` +
-    rows.map(([i, r]) => `<tr><td style="color:${TC[i]};font-weight:700">${M.tractors[i]}</td><td>${r.peak ? r.peak.period_s.toFixed(0) + ' s' : 'none found'}</td>` +
+    rows.map(([i, r]) => `<tr><td><i class="sw" style="background:${tvar(i)}"></i>${M.tractors[i]}</td><td>${r.peak ? r.peak.period_s.toFixed(0) + ' s' : 'none found'}</td>` +
       `<td>${r.peak ? r.peak.strength_db.toFixed(0) + ' dB' : 'n/a'}</td><td>${(r.n * P.nper / 2 / 3600 + P.nper / 2 / 3600).toFixed(1)} h of working time</td></tr>`).join('') + '</table>';
 }
 function drawPsd() {
@@ -938,7 +956,7 @@ function drawSpec() {
   for (let y = 0; y < ph; y++) { const [r, g, b] = rampRGB(1 - y / ph); c.fillStyle = `rgb(${r},${g},${b})`; c.fillRect(bx, mt + y, bw, 1.5); }
   c.fillStyle = css('--muted'); c.textAlign = 'left';
   c.fillText(img.hi.toFixed(0) + ' dB', bx + bw + 4, mt + 5); c.fillText(((img.hi + img.lo) / 2).toFixed(0) + ' dB', bx + bw + 4, mt + ph / 2); c.fillText(img.lo.toFixed(0) + ' dB', bx + bw + 4, mt + ph - 5); c.fillText('power', bx - 2, mt - 19);
-  $('spKey').innerHTML = ['SPACE_WEATHER', 'JAMMING', 'SPOOFING', 'EQUIPMENT_FAULT'].map(k => `<span><i style="background:${CLS[k][0]}"></i>${CLSNAME[k]}</span>`).join('') +
+  $('spKey').innerHTML = ['SPACE_WEATHER', 'JAMMING', 'SPOOFING', 'EQUIPMENT_FAULT'].map(k => `<span><i style="background:${cvar(k)}"></i>${CLSNAME[k]}</span>`).join('') +
     `<span>Bar above the plot = events reported for ${tn}. Bright steady line = a repeat that lasts. Dark noise = parked or quiet. Blank = missing data.</span>`;
   if (SP.hs && SP.hs[0] >= ml && SP.hs[0] <= w - mr && SP.hs[1] >= mt && SP.hs[1] <= h - mb) {
     const t = (SP.hs[0] - ml) / pw * TOTAL, f = (1 - (SP.hs[1] - mt) / ph) * fmax, i = Math.round((t - S.t[0]) / S.hop);
