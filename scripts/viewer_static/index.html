@@ -78,7 +78,7 @@ kbd{font:11px var(--mono);color:var(--ink-2);border:1px solid var(--line-2);bord
 #plots{position:relative;flex:1;min-height:0;border-top:1px solid var(--line)}
 #plots canvas{position:absolute;inset:0;width:100%;height:100%}
 #top{cursor:crosshair;touch-action:none}
-#status{position:absolute;right:8px;top:6px;z-index:5;font:11px/16px var(--mono);font-variant-numeric:tabular-nums;color:var(--ink-3);background:var(--bg);border:1px solid var(--line);border-radius:3px;padding:0 6px}
+#status{position:absolute;right:46px;top:1px;z-index:5;font:11px/16px var(--mono);font-variant-numeric:tabular-nums;color:var(--ink-3);background:var(--bg);border:1px solid var(--line);border-radius:3px;padding:0 6px}
 #mapbar{display:flex;gap:8px;align-items:center}
 #map{width:100%;height:300px;display:block;background:var(--bg);border:1px solid var(--line)}
 #info{flex:1;overflow:auto;font-size:13px;margin:0 -16px;padding:0 16px}
@@ -171,12 +171,14 @@ const TC = ['#0072B2', '#009E73', '#CC79A7'];
 const CH = {cn0: 0, mincn0: 1, xte: 2, sats: 3, fix: 4, link: 5, lat: 6, lon: 7, spd: 8}, NCH = 9;
 const CLS = {SPACE_WEATHER: ['#6a3d9a', 'SW'], JAMMING: ['#e31a1c', 'JAM'], SPOOFING: ['#ff7f00', 'SPOOF'],
              EQUIPMENT_FAULT: ['#8c6d31', 'EQUIP'], MULTIPATH: ['#7f7f7f', 'MP']};
-const PANELS = [['mean C/N0 (dB-Hz)', 1.2], ['min C/N0 (dB-Hz)', 1.2], ['|XTE| (m)', 1.0], ['satellites', 0.8],
-                ['fix quality', 0.8], ['base link', 0.75], ['SDA  Kp / S4', 1.15]];
-const ML = 74, MR = 46, MT = 6, MB = 24, GAP = 6, BUDGET = 20000;
+const PANELS = [['mean C/N0 · dB-Hz', 1.2], ['min C/N0 · dB-Hz', 1.2], ['|XTE| · m', 1.0], ['satellites', 0.8],
+                ['fix quality', 0.8], ['base link', 0.75], ['SDA · Kp left, S4 right', 1.15]];
+const ML = 74, MR = 46, MT = 20, MB = 24, GAP = 20, BUDGET = 20000;     // MT/GAP leave a title row above each panel
 const SPANS = [['10 min', 600], ['1 h', 3600], ['3 h', 10800], ['6 h', 21600], ['12 h', 43200], ['24 h', 86400], ['72 h', 259200]];
 const $ = id => document.getElementById(id);
 const FIXSHORT = ['NO FIX', 'AUTO', 'DGPS', 'FLOAT', 'FIXED'];
+const SANS = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+const MONO = 'ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Mono", Menlo, Consolas, monospace';
 // Tractor and cause colours come from the CSS tokens so the plots and the HTML always agree (and follow light/dark).
 const TVAR = ['--t1', '--t2', '--t3'];
 const CVAR = {SPACE_WEATHER: '--c-sw', JAMMING: '--c-jam', SPOOFING: '--c-spoof', EQUIPMENT_FAULT: '--c-equip', MULTIPATH: '--c-mp'};
@@ -301,7 +303,7 @@ function drawBase() {
   c.fillStyle = css('--plotbg'); c.fillRect(0, 0, w, h);
   const rects = layout(w, h); P = [];
   const grid = css('--grid'), axis = css('--axis'), txt = css('--muted');
-  c.font = '10px system-ui, sans-serif';
+  c.font = '10px ' + MONO;
   const L = LV[res];
   const tf = {xte: S.xlog ? v => Math.log10(1 + v / 0.1) : null};
   const xOf = t => rects[0].x + (t - t0) / span * rects[0].w;
@@ -343,8 +345,7 @@ function drawBase() {
       let s = pi === 4 ? FIXSHORT[lab] : pi === 5 ? `T${lab + 1}` : (Math.abs(lab) >= 100 ? lab.toFixed(0) : +lab.toFixed(2)).toString();
       c.fillText(s, r.x - 6, fy(yv));
     }
-    c.save(); c.translate(11, r.y + r.h / 2); c.rotate(-Math.PI / 2); c.textAlign = 'center'; c.fillStyle = txt; c.font = '10px system-ui'; c.fillText(PANELS[pi][0], 0, 0); c.restore();
-    c.strokeStyle = axis; c.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+    c.strokeStyle = axis; c.beginPath(); c.moveTo(r.x, Math.round(r.y + r.h) - 0.5); c.lineTo(r.x + r.w, Math.round(r.y + r.h) - 0.5); c.stroke();
 
     // ---- series
     c.save(); c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
@@ -373,6 +374,9 @@ function drawBase() {
   for (const [t, st] of timeTicks(t0, t1, last.w)) { const x = xOf(t); if (x >= last.x - 2 && x <= last.x + last.w + 2) c.fillText(tickLabel(t, st), x, last.y + last.h + 5); }
 
   drawOverlays(c, rects, xOf, t0, t1, span);
+  // panel titles: horizontal, in the row above each panel (never over the data), same place on every panel
+  c.font = '600 11px ' + SANS; c.textBaseline = 'bottom'; c.textAlign = 'left'; c.fillStyle = css('--ink-2');
+  rects.forEach((r, pi) => c.fillText(PANELS[pi][0], r.x, r.y - 4));
   $('status').textContent = res ? `${res} s bins · ${new Date(EPOCH + t0 * 1000).toISOString().slice(0, 16)}Z → ${new Date(EPOCH + t1 * 1000).toISOString().slice(0, 16)}Z` : 'loading…';
 }
 
@@ -398,7 +402,7 @@ function drawSDA(c, r, fy, t0, t1, xOf, y0, y1) {
   }
   c.stroke();
   c.setLineDash([2, 3]); c.strokeStyle = CLS.SPACE_WEATHER[0] + '88'; c.beginPath(); c.moveTo(r.x, fs(0.3)); c.lineTo(r.x + r.w, fs(0.3)); c.stroke(); c.setLineDash([]);
-  c.fillStyle = CLS.SPACE_WEATHER[0]; c.textAlign = 'left'; c.textBaseline = 'middle'; c.font = '10px system-ui';
+  c.fillStyle = CLS.SPACE_WEATHER[0]; c.textAlign = 'left'; c.textBaseline = 'middle'; c.font = '10px ' + MONO;
   c.restore(); c.save();
   for (const v of [0, 0.2, 0.4, 0.6]) c.fillText(v.toFixed(1), r.x + r.w + 4, fs(v));
   c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
@@ -425,12 +429,14 @@ function drawOverlays(c, rects, xOf, t0, t1, span) {
     for (const x of [xOf(e.s), xOf(e.e)]) { c.beginPath(); c.moveTo(x, top); c.lineTo(x, bot); c.stroke(); }
     c.setLineDash([]);
   }
-  c.font = 'bold 10px system-ui'; c.textBaseline = 'top'; c.textAlign = 'left';
+  c.font = '600 10px ' + SANS; c.textBaseline = 'top'; c.textAlign = 'left';
   for (const e of M.events) if (inView(e) && ((e.kind === 'DET' && S.dets) || (e.kind === 'TRUTH' && S.truth))) {
     const xa = Math.max(xOf(e.s), x0), wpx = xOf(e.e) - xOf(e.s); if (wpx < 26) continue;
-    c.fillStyle = CLS[e.cls][0];
     const lab = e.kind === 'DET' ? `${CLS[e.cls][1]} ${e.tr.join(',')} ${e.conf.toFixed(2)}` : `TRUTH ${e.id} ${CLS[e.cls][1]} ${e.tr.join(',')}`;
-    c.fillText(' ' + lab, xa + 1, top + 3 + (e.kind === 'DET' ? 0 : 12));
+    const y = top + 3 + (e.kind === 'DET' ? 0 : 13);
+    if (e.kind === 'DET') { c.fillStyle = CLS[e.cls][0]; c.fillRect(xa + 4, y + 1, 7, 7); }
+    else { c.strokeStyle = CLS[e.cls][0]; c.lineWidth = 1.2; c.strokeRect(xa + 4.5, y + 1.5, 6, 6); }
+    c.fillStyle = css('--ink'); c.fillText(lab, xa + 14, y);
   }
   if (S.mp && span <= 21600) {
     const r = rects[1];
@@ -466,12 +472,14 @@ function drawTop() {
   }
   const kp = nearest(M.kp.filter(q => q[0] <= t + 1), t), s4 = nearest(M.s4, t), dst = M.dst.length ? nearest(M.dst, t) : null;
   lines.push(['SDA', `Kp ${kp ? kp[1].toFixed(1) : '-'}  S4 ${s4 ? s4[1].toFixed(2) : '-'}` + (dst ? `  Dst ${dst[1].toFixed(0)} nT` : ''), -1]);
-  c.font = '11px ui-monospace, SFMono-Regular, Menlo, monospace';
-  const texts = lines.map(l => typeof l === 'string' ? l : `${l[0]}  ${l[1]}`), tw = Math.max(...texts.map(s => c.measureText(s).width)) + 14, th = texts.length * 15 + 8;
+  c.font = '11px ' + MONO;
+  const texts = lines.map(l => typeof l === 'string' ? l : `${l[0]}  ${l[1]}`), tw = Math.max(...texts.map(s => c.measureText(s).width)) + 30, th = texts.length * 15 + 10;
   let bx = x + 14; if (bx + tw > r0.x + r0.w) bx = x - tw - 14; const by = clamp((S.hoverY || 0) - th / 2, MT, h - MB - th);
-  c.fillStyle = css('--tipbg'); c.strokeStyle = css('--border'); c.beginPath(); c.roundRect(bx, by, tw, th, 6); c.fill(); c.stroke();
+  c.fillStyle = css('--tipbg'); c.strokeStyle = css('--line-2'); c.lineWidth = 1; c.beginPath(); c.roundRect(bx + 0.5, by + 0.5, tw, th, 4); c.fill(); c.stroke();
   c.textBaseline = 'top'; c.textAlign = 'left';
-  lines.forEach((l, i) => { c.fillStyle = typeof l === 'string' || l[2] < 0 ? css('--text') : TC[l[2]]; c.fillText(texts[i], bx + 7, by + 5 + i * 15); });
+  lines.forEach((l, i) => { const y = by + 6 + i * 15;
+    if (typeof l !== 'string' && l[2] >= 0) { c.fillStyle = TC[l[2]]; c.fillRect(bx + 8, y + 5, 10, 3); }
+    c.fillStyle = i === 0 ? css('--ink') : typeof l !== 'string' && l[2] < 0 ? css('--ink-2') : css('--ink'); c.fillText(texts[i], bx + 22, y); });
 }
 
 // ------------------------------------------------------------------ overview strip
@@ -484,10 +492,10 @@ function drawStrip() {
     for (const e of M.events) if (e.kind === 'DET') { c.fillStyle = CLS[e.cls][0] + '40'; c.fillRect(x0 + e.s * k, 0, Math.max(1.5, (e.e - e.s) * k), h - 12); }
     for (const e of M.events) if (e.kind === 'TRUTH') { c.fillStyle = CLS[e.cls][0]; c.fillRect(x0 + e.s * k, h - 12, Math.max(1.5, (e.e - e.s) * k), 3); }
     for (let tr = 0; tr < 3; tr++) { if (!S.vis[tr]) continue; const d = dec(L.a[tr][CH.cn0], res, x0, W, 0, TOTAL); strokeSeries(c, d, L.a[tr][CH.cn0], res, {x: x0, w: W}, 0, TOTAL, fy, null, TC[tr] + 'cc', 1, false, 0); }
-    c.fillStyle = css('--muted'); c.font = '9px system-ui'; c.textBaseline = 'bottom'; c.textAlign = 'left';
+    c.fillStyle = css('--muted'); c.font = '10px ' + MONO; c.textBaseline = 'bottom'; c.textAlign = 'left';
     for (let d = 0; d < 3; d++) c.fillText(fmtT(d * 86400).slice(0, 5), x0 + d * 86400 * k + 2, h - 1);
     const xa = x0 + view.t0 * k, xb = x0 + view.t1 * k;
-    c.fillStyle = css('--ink') + '14'; c.fillRect(xa, 0, xb - xa, h); c.strokeStyle = css('--accent'); c.lineWidth = 1.5; c.strokeRect(xa + .5, .5, Math.max(2, xb - xa), h - 1);
+    c.fillStyle = css('--ink') + '14'; c.fillRect(xa, 0, xb - xa, h); c.strokeStyle = css('--accent'); c.lineWidth = 1; c.strokeRect(xa + .5, .5, Math.max(2, xb - xa), h - 1);
   }
 }
 
@@ -859,7 +867,7 @@ function drawPsd() {
   const {c, w, h} = fit(cv), D = SP.data, P = D.psd, rows = specRows().filter(([i]) => SP.vis[i]);
   const ml = 56, mr = 14, mt = 12, mb = 46, fmax = D.fmax * 1000, df = P.df * 1000;
   c.fillStyle = css('--plotbg'); c.fillRect(0, 0, w, h);
-  c.font = '11px system-ui'; c.textBaseline = 'middle';
+  c.font = '11px ' + MONO; c.textBaseline = 'middle';
   if (!rows.length) { c.fillStyle = css('--muted'); c.textAlign = 'center'; c.fillText('No working time in this period', w / 2, h / 2); return; }
   const k1 = Math.ceil(1 / df);                         // y range from rates above 1 mHz so slow drift does not flatten the peaks
   let lo = Infinity, hi = -Infinity;
@@ -883,14 +891,16 @@ function drawPsd() {
   c.save(); c.beginPath(); c.rect(ml, mt, w - ml - mr, h - mt - mb); c.clip(); c.lineWidth = 1.6; c.lineJoin = 'round';
   rows.forEach(([i, r]) => { c.strokeStyle = TC[i]; c.beginPath(); r.db.forEach((v, k) => { const x = X(k * df), y = Y(Math.max(v, lo)); k ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); });
   c.restore();
-  c.strokeStyle = css('--axis'); c.strokeRect(ml, mt, w - ml - mr, h - mt - mb);
+  c.strokeStyle = css('--axis'); c.lineWidth = 1; c.beginPath(); c.moveTo(ml, Math.round(h - mb) - 0.5); c.lineTo(w - mr, Math.round(h - mb) - 0.5); c.stroke();
   if (SP.hp && SP.hp[0] >= ml && SP.hp[0] <= w - mr) {
     const f = (SP.hp[0] - ml) / (w - ml - mr) * fmax, k = Math.round(f / df);
     c.strokeStyle = css('--text'); c.lineWidth = 1; c.beginPath(); c.moveTo(SP.hp[0], mt); c.lineTo(SP.hp[0], h - mb); c.stroke();
     const lines = [`${(k * df).toFixed(2)} mHz  ·  every ${perStr(k * df)}`, ...rows.map(([i, r]) => `${M.tractors[i]}  ${r.db[k].toFixed(1)} dB`)];
-    const bw = 170, bh = 8 + lines.length * 15, bx = SP.hp[0] + 12 + bw > w ? SP.hp[0] - 12 - bw : SP.hp[0] + 12;
-    c.fillStyle = css('--tipbg'); c.strokeStyle = css('--border'); c.fillRect(bx, mt + 6, bw, bh); c.strokeRect(bx, mt + 6, bw, bh);
-    c.textAlign = 'left'; lines.forEach((t, j) => { c.fillStyle = j ? TC[rows[j - 1][0]] : css('--text'); c.fillText(t, bx + 6, mt + 17 + j * 15); });
+    const bw = 200, bh = 10 + lines.length * 15, bx = SP.hp[0] + 12 + bw > w ? SP.hp[0] - 12 - bw : SP.hp[0] + 12;
+    c.fillStyle = css('--tipbg'); c.strokeStyle = css('--line-2'); c.beginPath(); c.roundRect(bx + 0.5, mt + 6.5, bw, bh, 4); c.fill(); c.stroke();
+    c.textAlign = 'left'; lines.forEach((t, j) => { const y = mt + 18 + j * 15;
+      if (j) { c.fillStyle = TC[rows[j - 1][0]]; c.fillRect(bx + 8, y - 1, 10, 3); }
+      c.fillStyle = css('--ink'); c.fillText(t, bx + 22, y); });
   }
 }
 function specImage(ch, tr) {
@@ -910,13 +920,12 @@ function drawSpec() {
   const cv = $('spgCv'); if (!cv || !SP.data || !cv.offsetWidth) return;
   cssv = getComputedStyle(document.documentElement);
   const {c, w, h} = fit(cv), D = SP.data, S = D.spec, tn = M.tractors[SP.tr], img = specImage(SP.ch, SP.tr);
-  const ml = 86, mr = 74, mt = 34, mb = 26, fmax = D.fmax * 1000, pw = w - ml - mr, ph = h - mt - mb;
+  const ml = 112, mr = 74, mt = 34, mb = 26, fmax = D.fmax * 1000, pw = w - ml - mr, ph = h - mt - mb;
   const X = t => ml + t / TOTAL * pw, Y = f => mt + (1 - f / fmax) * ph;
-  c.fillStyle = css('--plotbg'); c.fillRect(0, 0, w, h); c.font = '11px system-ui'; c.textBaseline = 'middle';
+  c.fillStyle = css('--plotbg'); c.fillRect(0, 0, w, h); c.font = '11px ' + MONO; c.textBaseline = 'middle';
   c.fillStyle = css('--bg'); c.fillRect(ml, mt, pw, ph);                              // skipped windows (gaps) show as background
   c.imageSmoothingEnabled = false;
   c.drawImage(img.cv, X(S.t[0] - S.hop / 2), mt, X(S.t[S.t.length - 1] + S.hop / 2) - X(S.t[0] - S.hop / 2), ph);
-  c.strokeStyle = css('--axis'); c.strokeRect(ml, mt, pw, ph);
   c.fillStyle = css('--muted'); c.textAlign = 'right';
   for (let f = 0; f <= fmax + 1e-9; f += 10) { c.fillText(`${f} mHz` + (f ? ` · ${perStr(f)}` : ''), ml - 6, Y(f)); c.beginPath(); c.moveTo(ml - 3, Y(f)); c.lineTo(ml, Y(f)); c.stroke(); }
   c.textAlign = 'center'; const step = w < 700 ? 43200 : 21600;
@@ -928,7 +937,7 @@ function drawSpec() {
   const bx = w - mr + 14, bw = 12;                                                    // colour bar
   for (let y = 0; y < ph; y++) { const [r, g, b] = rampRGB(1 - y / ph); c.fillStyle = `rgb(${r},${g},${b})`; c.fillRect(bx, mt + y, bw, 1.5); }
   c.fillStyle = css('--muted'); c.textAlign = 'left';
-  c.fillText(img.hi.toFixed(0) + ' dB', bx + bw + 4, mt + 5); c.fillText(img.lo.toFixed(0) + ' dB', bx + bw + 4, mt + ph - 5); c.fillText('power', bx - 2, mt - 19);
+  c.fillText(img.hi.toFixed(0) + ' dB', bx + bw + 4, mt + 5); c.fillText(((img.hi + img.lo) / 2).toFixed(0) + ' dB', bx + bw + 4, mt + ph / 2); c.fillText(img.lo.toFixed(0) + ' dB', bx + bw + 4, mt + ph - 5); c.fillText('power', bx - 2, mt - 19);
   $('spKey').innerHTML = ['SPACE_WEATHER', 'JAMMING', 'SPOOFING', 'EQUIPMENT_FAULT'].map(k => `<span><i style="background:${CLS[k][0]}"></i>${CLSNAME[k]}</span>`).join('') +
     `<span>Bar above the plot = events reported for ${tn}. Bright steady line = a repeat that lasts. Dark noise = parked or quiet. Blank = missing data.</span>`;
   if (SP.hs && SP.hs[0] >= ml && SP.hs[0] <= w - mr && SP.hs[1] >= mt && SP.hs[1] <= h - mb) {
@@ -938,8 +947,8 @@ function drawSpec() {
     const lines = [fmtT(t), `${f.toFixed(1)} mHz  ·  every ${perStr(f)}`, col ? `${col[k].toFixed(1)} dB` : 'no data in this window', ...hits];
     c.strokeStyle = css('--text'); c.lineWidth = 1; c.beginPath(); c.moveTo(SP.hs[0], mt); c.lineTo(SP.hs[0], h - mb); c.moveTo(ml, SP.hs[1]); c.lineTo(w - mr, SP.hs[1]); c.stroke();
     const bw = 190, bh = 8 + lines.length * 15, bx2 = SP.hs[0] + 12 + bw > w - mr ? SP.hs[0] - 12 - bw : SP.hs[0] + 12, by = Math.min(SP.hs[1] + 8, h - mb - bh);
-    c.fillStyle = css('--tipbg'); c.strokeStyle = css('--border'); c.fillRect(bx2, by, bw, bh); c.strokeRect(bx2, by, bw, bh);
-    c.fillStyle = css('--text'); c.textAlign = 'left'; lines.forEach((tx, j) => c.fillText(tx, bx2 + 6, by + 12 + j * 15));
+    c.fillStyle = css('--tipbg'); c.strokeStyle = css('--line-2'); c.beginPath(); c.roundRect(bx2 + 0.5, by + 0.5, bw, bh, 4); c.fill(); c.stroke();
+    c.textAlign = 'left'; lines.forEach((tx, j) => { c.fillStyle = j ? css('--ink-2') : css('--ink'); c.fillText(tx, bx2 + 8, by + 12 + j * 15); });
   }
 }
 
