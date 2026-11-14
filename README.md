@@ -23,7 +23,7 @@ python scripts/get_data.py                                  # downloads + checks
 python scripts/inspect_data.py --data data                  # schema/range sanity dump
 PYTHONPATH=src python -m straightrows.cli dev --data data   # score on the 12 labeled dev episodes (about 5 s)
 python scripts/compare_baseline.py data                     # official starter baseline vs this solution, same scorer
-python -m unittest discover -s tests -v                     # 28 tests, 4 of them on the real data
+python -m unittest discover -s tests -v                     # 29 tests, 5 of them on the real data
 ```
 
 **Regenerate the submitted results (the one command):**
@@ -69,7 +69,27 @@ viewer), and a demo figure:
    evidence describes exactly the window it states. It cites per-machine values vs baseline, the neighbor comparison,
    S4/Kp/Dst/advisories/RFI with times and delays, what was ruled out, and a concurrency note. Confidence is an additive,
    explainable score (each term is printed in the evidence), bounded to [0.30, 0.90] because it is heuristic.
-5. **Why so many multipath detections.** The dip recurs on every headland pass (about every 5.9 min per machine, 486
+5. **Seven independent cross-checks** (`analysis.py`). They run on every finished detection, never change its class, and
+   are written into the evidence. Each tests the label from a different angle:
+   * *Storm model*: fleet loss regressed on S4 over the whole record (about 2.3 dB per 0.1 of S4, r = 1.00 after trimming
+     non-ionospheric bins). Per event: how much loss S4 predicts and how much is left over. Storms leave under 1 dB; the
+     jams leave 5-17 dB, and the jam inside a storm leaves 13 dB on top of the 9 dB the storm explains.
+   * *Ground-source test*: can one transmitter on the ground explain every machine's loss from its distance? For all five
+     jams a single location explains 97-99.7 % of the variation, falling 19.7-21.0 dB per tenfold distance (free space is
+     20). For the storms nothing fits (0-2 %). This adds +0.10 to jamming confidence and is the main support for the
+     18:30Z jam, which has no RFI report. The fitted spots are 0.5-1.8 km from the three matching RFI reports.
+   * *Positioning modes*: share of time in RTK fixed / float / DGPS / autonomous / no fix. Spoofed machines stay RTK fixed
+     100 % of the time while metres off line; the link fault only ever drops to float; strong jams reach no fix.
+   * *Relative geometry* (spoofing): the machine's reported position slides sideways relative to a neighbour by the same
+     amount as the cross-track error (r > 0.999 in all five cases), so the drift is in the position solution itself.
+   * *Periodicity* (multipath): the dips repeat every 356 s per machine; the 191 dips outside the headland band are spread
+     evenly along the field, so there is no second recurring spot.
+   * *Live-alarm check*: a backward-looking CUSUM gives the delay a live system would have had: 10-20 s for step events
+     in quiet conditions, 110 s for the jam inside a storm, 150-220 s for spoofing ramps, 620 s for the spoof inside a storm.
+   * *Probability cross-check*: naive Bayes over about ten yes/no observations with hand-set likelihoods. It agrees with
+     all 17 dev + eval labels, but only after it was adjusted to leave out observations already explained by an overlapping
+     cause (it first disagreed on two overlap cases), so it is a consistency check, not independent validation.
+6. **Why so many multipath detections.** The dip recurs on every headland pass (about every 5.9 min per machine, 486
    passes on the evaluation day). The scored multipath episode is one unknown representative pass, and the published
    scorer exempts other short recurrences, so each measurable pass is reported with its own measured dip (472 of 486;
    the other 14 fall inside a jam or antenna fault where the dip cannot be measured).
@@ -109,15 +129,15 @@ multipath). What supports generalization is indirect:
 * Robustness runs: the evaluation list is unchanged with 5 % of rows dropped, 2 % NaN, duplicated or shuffled rows, no
   RFI reports, an empty S4, Kp or Dst feed, a false RFI report during the storm, or the dev days removed.
 
-Confidence: on the 12 dev matches the mean confidence is 0.79 against a 100 % hit rate (Brier 0.069). With 12 all-correct
+Confidence: on the 12 dev matches the mean confidence is 0.80 against a 100 % hit rate (Brier 0.060). With 12 all-correct
 outcomes calibration cannot be demonstrated; the scores are ranked and auditable rather than calibrated, and are
-deliberately capped at 0.90. The two overlapping dev cases get the lowest values (jammer inside a storm 0.40, spoofing
+deliberately capped at 0.90. The two overlapping dev cases get the lowest values (jammer inside a storm 0.50, spoofing
 inside a storm 0.60).
 
 Evaluation day: 7 non-multipath detections (1 space weather, 2 jamming, 2 spoofing, 2 equipment) and 472 multipath
-pass reports. The least certain call is the 18:30Z jamming detection: no RFI report exists for it, so it rests on the
-telemetry (abrupt on and off, three machines with unequal loss, quiet S4 and Kp); whether T2 (5.5 dB loss) belongs in its
-tractor list is also uncertain.
+pass reports. The 18:30Z jamming detection has no RFI report, so it rests on the telemetry: abrupt on and off, quiet S4 and Kp, and
+a single ground-source fit that explains 99.7 % of the per-machine loss (T2's smaller 5.5 dB loss is what its 811 m distance
+predicts, which is why it is listed). The lowest-confidence call is the 01:00Z antenna fault (0.70).
 
 ## Literature check (what was and was not applied)
 Reviewed Radoš, Brkić, Begušić, *Recent Advances on Jamming and Spoofing Detection in GNSS*, Sensors 24(13):4210 (2024). Most of
@@ -147,8 +167,8 @@ text), so its numbers were treated as indicative only.
 * **Jamming vs antenna fault on one machine** is the hardest split; it relies on sustained-vs-bursty behaviour, depth,
   neighbors and RFI. A missing RFI report lowers confidence by design (reports can be missing or false).
 * **S4 vs Kp.** S4 over the event is the main storm evidence and Kp/Dst/advisory are supporting votes; the S4 maximum within
-  +/-90 min is printed for context only. With `s4_high` at 0.40 instead of 0.30 the evaluation storm (S4 mean 0.42) would
-  lose its S4 vote and rest on Kp, the advisory and its uniformity.
+  +/-90 min is printed for context only. If `s4_high` were raised above the evaluation storm's S4 mean (0.45; default
+  threshold 0.30) the storm would lose its S4 vote and rest on Kp, the advisory and its uniformity.
 * **Multipath** relies on recurrence; the first occurrence at a never-seen spot will not be reported. A pass inside a jam or
   antenna fault is reported only when the dip is still measurable (14 of 486 evaluation passes are not).
 * **A machine fault wholly inside a jam** that already lists that machine is treated as part of the jam unless it has an
@@ -163,7 +183,7 @@ with direction-of-arrival, and real-time (not delayed) space-weather feeds.
 
 ## Layout
 ```
-src/straightrows/  io, config, features, sda, detect, report, stats, evaluate, calibrate, synth, official_scorer, cli
+src/straightrows/  io, config, features, sda, detect, analysis, report, stats, evaluate, calibrate, synth, official_scorer, cli
 scripts/           get_data, inspect_data, plot_episode, compare_baseline, stability, viewer, synth_robustness, validate_submission
 tests/             unit + end-to-end tests on synthetic data; regression tests on the real data (skipped if absent)
 docs/              STABILITY.md (threshold stability), ME457_METHODS.md (statistics used), KICKOFF.md (playbook)

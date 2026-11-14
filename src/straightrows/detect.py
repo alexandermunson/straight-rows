@@ -253,6 +253,13 @@ class Detector:
                 c["end"] = c["start"] + pd.Timedelta(seconds=self.p.bin_s)
             if c["cls"] != "MULTIPATH":
                 self._measure(c)                    # windows/tractors changed by merge/onset shift: re-measure everything
+        from .analysis import Analysis               # independent cross-checks; they annotate, they never re-classify
+        try:
+            Analysis(self).annotate(out)
+        except Exception as ex:                      # a cross-check must never cost a detection: report and carry on without it
+            print(f"WARNING: cross-check analyses skipped ({type(ex).__name__}: {ex})")
+            for c in out:
+                c.setdefault("ax", {})
         return sorted(out, key=lambda c: c["start"])
 
     # ------------------------------------------------------------ attribution
@@ -523,6 +530,7 @@ class Detector:
                                 base_min_cn0=float(mmed[a:b].median()), sats_min=float(sat[a:b].min()),
                                 sats_base=float(smed[a:b].median()), xte_max=float(g["cross_track_error_m"][a:b].abs().max())))
         self._mp_cache = []
+        self._mp_raw = raw                           # every dip, before the location band is applied (analysis.periodicity)
         if len(raw) < p.mp_min_recur:
             return self._mp_cache
         ys = np.array([e["y"] for e in raw])

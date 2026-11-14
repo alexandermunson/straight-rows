@@ -36,6 +36,7 @@ class RealData(unittest.TestCase):
         cls.b = io.load_all(DATA)
         cls.p = config.Params()
         cands = Detector(cls.b, cls.p, (config.EVAL_START, config.EVAL_END)).run()
+        cls.cands = cands
         cls.sub = to_submission(cands, cls.p, "x", "https://github.com/x/y")
 
     def test_dev_score_is_full_with_no_false_positives(self):
@@ -47,6 +48,27 @@ class RealData(unittest.TestCase):
         real = [(d["class"], d["tractors"], d["start"][11:19], d["end"][11:19])
                 for d in self.sub["detections"] if d["class"] != "MULTIPATH"]
         self.assertEqual(real, EXPECTED)
+
+    def test_cross_checks_support_every_evaluation_label(self):
+        from straightrows.analysis import Analysis
+        real = [c for c in self.cands if c["cls"] != "MULTIPATH"]
+        for c in real:
+            ax = c["ax"]
+            self.assertTrue(ax["posterior"]["agrees"], (c["cls"], str(c["start"]), ax["posterior"]["probs"]))
+            if c["cls"] == "JAMMING":        # one ground transmitter explains the losses, at about free-space falloff
+                self.assertTrue(Analysis.source_ok(ax["source"]))
+                self.assertGreater(ax["source"]["r2"], 0.95)
+                self.assertGreater(ax["storm"]["resid"], 5.0)
+            if c["cls"] == "SPACE_WEATHER":  # no ground transmitter fits; S4 predicts the loss to within 2 dB
+                self.assertFalse(Analysis.source_ok(ax["source"]))
+                self.assertLess(abs(ax["storm"]["resid"]), 2.0)
+            if c["cls"] == "SPOOFING":       # reported track moves with the cross-track error; receiver stays RTK fixed
+                self.assertGreater(ax["geom"]["r"], 0.99)
+                self.assertGreater(ax["fix"][c["tractors"][0]]["share"]["RTK_FIXED"], 0.98)
+        per = next(c["ax"]["period"] for c in self.cands if c["cls"] == "MULTIPATH")
+        self.assertFalse(per["second_spot"])
+        for t in ("T1", "T2", "T3"):
+            self.assertAlmostEqual(per["period"][t], 355.5, delta=3)
 
     def test_multipath_reports_fit_the_scorer_exemption_and_the_validator(self):
         mp = [d for d in self.sub["detections"] if d["class"] == "MULTIPATH"]

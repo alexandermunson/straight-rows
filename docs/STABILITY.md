@@ -70,7 +70,7 @@ the evaluation detections:
 | `regional_drop_db` | 3.0 | 8.0 | eval 18:30 jam splits into a T3 jam plus a T1 equipment fault | the least-affected machine there (T2) loses 5.5 dB |
 | `cn0_drop_db` | 4.0 | 8.0 | one extra eval equipment detection inside the 02:12 jam | - |
 
-`s4_high` is no longer on this list. The evaluation storm's S4 mean over the event is 0.42 (default threshold 0.30); if the
+`s4_high` is no longer on this list. The evaluation storm's S4 mean over the event is 0.45 (default threshold 0.30); if the
 threshold is raised past it, or the S4 feed is missing, the storm still classifies as SPACE_WEATHER from Kp 6.8, the storm
 advisory in force and its uniform 3-hour profile. `min_cn0_dip_db` up to 18 no longer adds a dev false positive.
 Changes that only move an onset by <= 40 s (`bin_s` 5-60 s, `xte_abs_m` 2-3 m, `link_bad_frac` 0.3-0.95) are not listed.

@@ -35,9 +35,9 @@ class SDA:
     def s4(self, a, b):
         lag = pd.Timedelta(minutes=self.p.s4_lag_min)
         s = self.b.s4
-        inside = s[(s.ts >= a) & (s.ts <= b)]
+        inside = s[(s.ts >= a) & (s.ts < b)]        # a sample stamped exactly at the end describes the next interval
         if not len(inside):          # event shorter than the 15 min cadence: use the latest sample just before it
-            inside = s[(s.ts >= a - pd.Timedelta(minutes=15)) & (s.ts <= b)].tail(1)
+            inside = s[(s.ts >= a - pd.Timedelta(minutes=15)) & (s.ts < b)].tail(1)
         wide = s[(s.ts >= a - lag) & (s.ts <= b + lag)]
         # elevated is None (unknown) when the feed has no sample for the event: missing data is NOT evidence of quiet
         elevated = None if not len(inside) else bool(inside.s4.mean() >= max(self.p.s4_high, self.s4_base + 5 * (self.s4_mad or 0.02)))

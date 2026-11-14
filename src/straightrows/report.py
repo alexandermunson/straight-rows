@@ -48,6 +48,9 @@ def confidence(c, p: Params):
             terms.append(("deep C/N0 loss on the worst machine", +0.1))
         if c.get("spread_db") is not None and c["spread_db"] >= p.uniform_spread_db:
             terms.append((f"loss differs between machines ({c['spread_db']:.1f} dB): not a uniform ionospheric pattern", +0.10))
+        sf = (c.get("ax") or {}).get("source")
+        if sf and not sf.get("flat") and sf["r2"] >= 0.9 and -35.0 <= sf["slope"] <= -8.0:
+            terms.append((f"losses fit one ground transmitter (R2 {sf['r2']:.2f})", +0.10))
     elif cls == "SPOOFING":
         if abs(st["cn0_dev_mean"]) < 2:
             terms.append(("signal health intact", +0.15))
@@ -140,6 +143,7 @@ def evidence_multipath(c, p: Params, conf_terms):
         ev.append("Concurrent distinct cause(s): " + "; ".join(
             f"{o['cls']} on {','.join(o['tractors'])} {fmts(o['start'])}-{fmts(o['end'])}" for o in others)
             + ". The dip is reported separately because it recurs at the same spot on its own schedule.")
+    ev.extend(analysis_evidence(c, p))
     ev.append("Confidence built from: " + "; ".join(f"{n} {d:+.2f}" if i else n for i, (n, d) in enumerate(conf_terms)) + ".")
     return ev
 
@@ -250,6 +254,7 @@ def evidence(c, p: Params, conf_terms):
         else:
             ev.append(f"Attribution: machine-specific antenna dropouts on {tr[0]} (sats drop in {100 * t0['sats_dropout_frac']:.0f}% of bins, "
                       f"min C/N0 dips in {100 * t0['mincn0_dip_frac']:.0f}%) with neighbors comparatively healthy.")
+    ev.extend(analysis_evidence(c, p))
     ev.extend(operator_lines(c, p, conf_terms))
     others = [o for o in c.get("concurrent", []) if o["cls"] != cls]
     if others:
@@ -317,6 +322,7 @@ _TERM_PLAIN = [
     (r"^no RFI report.*$", "no interference report was filed (they are sometimes missing)"),
     (r"^deep C/N0 loss on the worst machine$", "the worst-hit machine lost more than 8 dB of signal"),
     (r"^loss differs between machines \(([\d.]+) dB\).*$", r"the machines were hit unequally (\1 dB apart), unlike a storm"),
+    (r"^losses fit one ground transmitter \(R2 ([\d.]+)\)$", r"one ground transmitter explains \1 of the pattern of loss"),
     (r"^signal health intact$", "the signal stayed healthy while the position drifted"),
     (r"^large XTE$", "the machine went more than 2 m off its line"),
     (r"^XTE drift slope CI excludes zero$", "the drift was steady rather than random"),
@@ -550,8 +556,160 @@ def explain(c, p: Params, conf, terms):
                         f"stayed on its line (at most {t0['xte_max']:.2f} m off). "
                         + ("An interference report is listed above for completeness, but its timing fits a different event and this call does not rely on it. " if c["rfi"] else "")
                         + overlap))
+    a_why, a_not, a_detail = analysis_plain(c, p)
+    out = [(h, (t + " " + " ".join(a_why)) if h.startswith("Why this is") else (t + " " + " ".join(a_not)) if h.startswith("Why not") else t)
+           for h, t in out]
     if cls != "MULTIPATH":
         out.insert(2, ("What the space-weather and interference feeds say", _sda_plain(c, p)))
+    if a_detail:
+        out.append(("Independent checks", "\n".join(a_detail)))
     out.append(("What to do", f"{PLAIN_ACTION[ACTION[cls]]} (Action code: {ACTION[cls]}.)"))
     out.append(("How sure we are", _confidence_plain(conf, terms)))
     return [(h, "\n".join(" ".join(line.split()) for line in t.split("\n") if line.strip())) for h, t in out]
+
+
+# ---------------------------------------------------------------- cross-check analyses (analysis.py) in words
+def _fix_words(share):
+    from .analysis import FIX_ORDER, FIX_PLAIN
+    parts = [f"{FIX_PLAIN[k]} {100 * share[k]:.0f}%" for k in FIX_ORDER if share.get(k, 0) >= 0.005]
+    return ", ".join(parts)
+
+
+def analysis_evidence(c, p: Params):
+    """Compact, checkable evidence lines from the seven cross-checks (submission)."""
+    from .analysis import Analysis
+    ax, out = c.get("ax") or {}, []
+    if c["cls"] == "MULTIPATH":
+        per = ax.get("period") or {}
+        t = c["tractors"][0]
+        if per.get("period", {}).get(t):
+            out.append(f"Periodicity: dips on {t} repeat every {per['period'][t]:.0f} s (autocorrelation {per['ac'][t]:.2f})"
+                       + (f"; the {per['n_off']} dips outside the band are spread along the field (at most {per['off_max_bin']} per 100 m "
+                          f"vs {per['n_in']} in the band), so there is no second recurring spot." if "n_off" in per else "."))
+        return out
+    sm, sf, cu, fx, gm, po = (ax.get(k) for k in ("storm", "source", "cusum", "fix", "geom", "posterior"))
+    if sm:
+        out.append(f"Storm model (fleet loss regressed on S4 over all 72 h, r={sm['r']:.2f}, {sm['slope']:.1f} dB per unit S4, n={sm['n']} 15-min bins): "
+                   f"S4 predicts {sm['pred']:.1f} dB of loss here, observed {sm['obs']:.1f} dB, so {sm['resid']:+.1f} dB is not explained by the ionosphere.")
+    if sf:
+        if sf.get("flat") or sf["r2"] < 0.5:
+            out.append("Ground-source test: the loss does not vary with machine position "
+                       + (f"(spread {sf['loss_sd']:.1f} dB)" if sf.get("flat") else f"(a point source explains only {100 * sf['r2']:.0f}% of the variation)")
+                       + ", so no single ground transmitter fits; consistent with a cause overhead.")
+        else:
+            out.append(f"Ground-source test: a single transmitter at {sf['lat']:.4f}, {sf['lon']:.4f} explains {100 * sf['r2']:.1f}% of the variation in loss across "
+                       f"machines and time (n={sf['n']}), falling {abs(sf['slope']):.1f} dB per tenfold distance (free space is 20); "
+                       + "; ".join(f"{t} {v['dist']:.0f} m away lost {v['loss']:.1f} dB" for t, v in sf["per"].items())
+                       + (f"; {sf['rfi_km']:.1f} km from the centre of {sf['rfi_id']}." if "rfi_km" in sf else "."))
+    if fx:
+        out.append("Positioning modes: " + "; ".join(f"{t} {_fix_words(v['share'])}" for t, v in fx.items()) + ".")
+    if gm:
+        out.append(f"Relative geometry: {c['tractors'][0]}'s reported position moved {gm['moved']:.1f} m sideways relative to {gm['ref']} "
+                   f"(which held its row, {gm['sep0']:.0f} m away), tracking the cross-track error (max {gm['xte_max']:.1f} m) with r={gm['r']:.3f}.")
+    if cu:
+        if cu.get("no_ref"):
+            out.append("Live-alarm check: not available, the machines had not been working long enough before the onset to set a reference level.")
+        elif cu["delay_s"] is not None:
+            out.append(f"Live-alarm check (backward-looking CUSUM on {cu['what']}): alarm {cu['delay_s']:.0f} s after onset"
+                       + (", with an earlier false alarm in the preceding 30 min." if cu["false_alarm"] else ", no false alarm in the preceding 30 min."))
+    if po:
+        pr = po["probs"]
+        out.append(f"Probability cross-check (naive Bayes over {po['n_obs']} yes/no observations, hand-set likelihoods, equal priors): "
+                   + ", ".join(f"{k} {100 * v:.1f}%" for k, v in sorted(pr.items(), key=lambda kv: -kv[1]) if v >= 0.0005)
+                   + ("." if po["agrees"] else f". This disagrees with the reported class ({c['cls']}).")
+                   + (" Storm indicators are left out because the concurrent storm is reported separately." if po["in_storm"] else ""))
+    return out
+
+
+def analysis_plain(c, p: Params):
+    """(why, why_not, detail) sentences for the reasoning panel."""
+    from .analysis import FIX_PLAIN, Analysis
+    ax = c.get("ax") or {}
+    why, why_not, detail = [], [], []
+    cls, tr = c["cls"], c["tractors"]
+    if cls == "MULTIPATH":
+        per, t = ax.get("period") or {}, tr[0]
+        if per.get("period", {}).get(t):
+            why.append(f"Checked a second way, without using location at all: the dips on {t} repeat like clockwork every {per['period'][t]:.0f} seconds, "
+                       "which is the time it takes to come back round to the headland.")
+            if "n_off" in per:
+                why.append(f"We also looked for a second such spot. The {per['n_off']} dips found elsewhere are scattered along the whole field "
+                           f"(at most {per['off_max_bin']} in any 100 m stretch, against {per['n_in']} at the headland), so this is the only one.")
+        return why, why_not, detail
+    sm, sf, cu, fx, gm, po = (ax.get(k) for k in ("storm", "source", "cusum", "fix", "geom", "posterior"))
+    src_ok = Analysis.source_ok(sf)
+    if cls == "SPACE_WEATHER":
+        if sm:
+            why.append(f"The size of the loss is what the ionosphere predicts. Across the three days, fleet signal loss follows the scintillation index almost "
+                       f"exactly (about {sm['slope'] / 10:.1f} dB for every 0.1 of S4). For this event that predicts {sm['pred']:.1f} dB; the machines lost {sm['obs']:.1f} dB."
+                       + (f" The remaining {sm['resid']:.1f} dB comes from the separate event reported inside this window." if sm["resid"] > 2.5 else ""))
+        if sf:
+            why_not.append("We tested directly for a jammer by trying to place a single ground transmitter that would explain each machine's loss from its distance. "
+                           + ("None fits: the loss does not change at all as the machines move around the field."
+                              if sf.get("flat") else f"None fits: the best position explains only {100 * sf['r2']:.0f}% of the variation in loss.")
+                           + " A source overhead is the only kind that looks like that.")
+    elif cls == "JAMMING":
+        if src_ok:
+            why.append(f"The strongest evidence is geometric. If we assume one transmitter on the ground and ask where it would have to be, a single spot "
+                       f"({sf['lat']:.4f}, {sf['lon']:.4f}) explains {100 * sf['r2']:.1f}% of how the loss rose and fell on every machine as they drove up and down the field. "
+                       f"The loss weakens by {abs(sf['slope']):.1f} dB for every tenfold increase in distance from that spot; radio waves in open air weaken by 20. "
+                       + " ".join(f"{t}, on average {v['dist']:.0f} m from it, lost {v['loss']:.1f} dB." for t, v in sf["per"].items())
+                       + (f" That spot is {sf['rfi_km']:.1f} km from the centre of interference report {sf['rfi_id']}, inside the report's stated uncertainty."
+                          if "rfi_km" in sf else " No interference report exists for this event, so this fit is the main independent support for it.")
+                       + " A machine that lost less signal was simply further away, so every listed machine belongs to the same event.")
+        elif sf:
+            why.append(f"We also tried to place a single ground transmitter that would explain each machine's loss from its distance. The fit is not convincing "
+                       f"(it explains {100 * sf.get('r2', 0):.0f}% of the variation), so the location evidence neither helps nor hurts here.")
+        if sm:
+            why_not.append((f"The ionosphere cannot account for it: at the scintillation level measured, the storm model predicts {sm['pred']:.1f} dB of loss and the "
+                            f"machines lost {sm['obs']:.1f} dB. " + (f"The other {sm['resid']:.1f} dB is what we attribute to the jammer."
+                            if sm["pred"] > 2 else "Essentially none of the loss is explained by space weather.")))
+    elif cls == "SPOOFING":
+        if fx and tr[0] in fx:
+            f0 = fx[tr[0]]
+            if f0["share"].get("RTK_FIXED", 0) > 0.98:
+                why.append(f"Throughout, {tr[0]}'s receiver claimed its best positioning mode (full-precision fix 100% of the time). A receiver that is confident "
+                           "and wrong by metres is being fed a believable false signal; interference or a fault makes a receiver lose that mode.")
+            else:
+                why.append(f"{tr[0]}'s positioning mode did degrade ({_fix_words(f0['share'])}), but so did every other machine's because of the concurrent storm, "
+                           "so the mode tells us nothing extra here.")
+        if gm:
+            why.append(f"The drift also shows up in the machine's own reported position, not just in the guidance monitor: relative to {gm['ref']}, which held its row "
+                       f"{gm['sep0']:.0f} m away, {tr[0]}'s reported track slid {gm['moved']:.1f} m sideways, in step with the {gm['xte_max']:.1f} m cross-track error "
+                       f"(correlation {gm['r']:.3f}). Two independent measurements agree that the position solution itself was walking away.")
+    else:
+        if fx and tr[0] in fx:
+            f0 = fx[tr[0]]
+            if c.get("mode") == "link":
+                why.append(f"The positioning mode fits a lost correction feed and nothing worse: {_fix_words(f0['share'])}, flipping {f0['changes_per_min']:.0f} times a minute "
+                           "as the link came and went. It never fell below reduced precision, which is what happens when corrections stop but the satellites are still received well.")
+            elif f0["share"].get("RTK_FIXED", 0) > 0.98:
+                why.append(f"The receiver kept its full-precision fix the whole time, so enough good satellites were always in view. Jamming or a storm strong "
+                           "enough to matter would have cost it that fix; individual satellites dropping in and out without that points at the antenna or its cable.")
+            else:
+                why.append(f"Positioning modes during the event: {_fix_words(f0['share'])}.")
+    if fx and cls in ("SPACE_WEATHER", "JAMMING"):
+        detail.append("Positioning modes during the event. " + " ".join(f"{t}: {_fix_words(v['share'])}." for t, v in fx.items()))
+    if po:
+        pr = sorted(po["probs"].items(), key=lambda kv: -kv[1])
+        txt = (f"As a separate check we combined {po['n_obs']} simple yes/no observations (for example: "
+               + "; ".join(po["present"][:3]) + ") into a probability for each cause. It gives "
+               + ", ".join(f"{PLAIN_CLASS[k].replace('a ', '', 1) if k != 'EQUIPMENT_FAULT' else 'an equipment fault'} {100 * v:.1f}%" for k, v in pr[:2])
+               + (". That agrees with the label." if po["agrees"] else ". That does NOT agree with the label, which is a reason for caution.")
+               + (" Because a storm was running at the same time and is reported separately, the storm's own indicators were left out of this calculation." if po["in_storm"] else "")
+               + (" Another cause is reported on this machine at the same time, and the observations it accounts for were left out." if po.get("overlap") else "")
+               + " The weights in this calculation were set by hand from the physics, not learned, so read it as a consistency check.")
+        why_not.append(txt)
+    if cu:
+        if cu.get("no_ref"):
+            detail.append("How fast a live system would have caught it: cannot be estimated for this event, because the machines only started working at about the "
+                          "time it began and there is no earlier stretch to compare against.")
+        elif cu["delay_s"] is not None:
+            detail.append(f"How fast a live system would have caught it: a detector that only looks backwards in time (watching the {cu['what']}) would have raised "
+                          f"the alarm {cu['delay_s']:.0f} seconds after the event began"
+                          + (", though it also raised a false alarm in the half hour before." if cu["false_alarm"] else ", with no false alarm in the half hour before.")
+                          + (" Slow drifts take longer to catch than sudden drops; the start time we report is worked out afterwards by tracing the drift back." if cls == "SPOOFING" else ""))
+        else:
+            detail.append(f"How fast a live system would have caught it: a detector that only looks backwards in time (watching the {cu['what']}) would not have "
+                          "alarmed on this event with its standard settings.")
+    return why, why_not, detail
