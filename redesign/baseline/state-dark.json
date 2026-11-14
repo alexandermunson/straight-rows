@@ -1,0 +1,192 @@
+{
+ "dark-inv-sel-jam-source": {
+  "tab": "",
+  "t0": 236700,
+  "t1": 243900,
+  "res": 1,
+  "sel": 28,
+  "selId": "D1264",
+  "vis": [
+   true,
+   true,
+   true
+  ],
+  "layers": {
+   "truth": true,
+   "dets": true,
+   "mp": true,
+   "base": true,
+   "xlog": false
+  },
+  "cls": "ALL",
+  "rows": 19,
+  "mapAll": false,
+  "mapZ": 1,
+  "opsDay": 2,
+  "spec": {
+   "ch": "mincn0",
+   "scope": 0,
+   "tr": 0,
+   "harm": true,
+   "vis": [
+    true,
+    true,
+    true
+   ]
+  },
+  "status": "1 s bins · 2026-05-06T17:45Z → 2026-05-06T19:45Z",
+  "open": "01100"
+ },
+ "dark-inv-hover-tooltip": {
+  "tab": "",
+  "t0": 239000,
+  "t1": 242600,
+  "res": 1,
+  "sel": -1,
+  "selId": null,
+  "vis": [
+   true,
+   true,
+   true
+  ],
+  "layers": {
+   "truth": true,
+   "dets": true,
+   "mp": true,
+   "base": true,
+   "xlog": false
+  },
+  "cls": "ALL",
+  "rows": 19,
+  "mapAll": false,
+  "mapZ": 1,
+  "opsDay": 2,
+  "spec": {
+   "ch": "mincn0",
+   "scope": 0,
+   "tr": 0,
+   "harm": true,
+   "vis": [
+    true,
+    true,
+    true
+   ]
+  },
+  "status": "1 s bins · 2026-05-06T18:23Z → 2026-05-06T19:23Z",
+  "open": "0"
+ },
+ "dark-inv-layers-all-toggled": {
+  "tab": "",
+  "t0": 239000,
+  "t1": 242600,
+  "res": 1,
+  "sel": -1,
+  "selId": null,
+  "vis": [
+   true,
+   true,
+   true
+  ],
+  "layers": {
+   "truth": false,
+   "dets": false,
+   "mp": false,
+   "base": false,
+   "xlog": true
+  },
+  "cls": "ALL",
+  "rows": 19,
+  "mapAll": false,
+  "mapZ": 1,
+  "opsDay": 2,
+  "spec": {
+   "ch": "mincn0",
+   "scope": 0,
+   "tr": 0,
+   "harm": true,
+   "vis": [
+    true,
+    true,
+    true
+   ]
+  },
+  "status": "1 s bins · 2026-05-06T18:23Z → 2026-05-06T19:23Z",
+  "open": "1"
+ },
+ "dark-ops-card-open": {
+  "tab": "ops",
+  "t0": 0,
+  "t1": 259200,
+  "res": 60,
+  "sel": -1,
+  "selId": null,
+  "vis": [
+   true,
+   true,
+   true
+  ],
+  "layers": {
+   "truth": true,
+   "dets": true,
+   "mp": true,
+   "base": true,
+   "xlog": false
+  },
+  "cls": "ALL",
+  "rows": 19,
+  "mapAll": false,
+  "mapZ": 1,
+  "opsDay": 2,
+  "spec": {
+   "ch": "mincn0",
+   "scope": 0,
+   "tr": 0,
+   "harm": true,
+   "vis": [
+    true,
+    true,
+    true
+   ]
+  },
+  "status": "60 s bins · 2026-05-04T00:00Z → 2026-05-07T00:00Z",
+  "open": "010000000000000000000000000"
+ },
+ "dark-spec-default": {
+  "tab": "spec",
+  "t0": 0,
+  "t1": 259200,
+  "res": 60,
+  "sel": -1,
+  "selId": null,
+  "vis": [
+   true,
+   true,
+   true
+  ],
+  "layers": {
+   "truth": true,
+   "dets": true,
+   "mp": true,
+   "base": true,
+   "xlog": false
+  },
+  "cls": "ALL",
+  "rows": 19,
+  "mapAll": false,
+  "mapZ": 1,
+  "opsDay": 2,
+  "spec": {
+   "ch": "mincn0",
+   "scope": 0,
+   "tr": 0,
+   "harm": true,
+   "vis": [
+    true,
+    true,
+    true
+   ]
+  },
+  "status": "60 s bins · 2026-05-04T00:00Z → 2026-05-07T00:00Z",
+  "open": "0"
+ }
+}

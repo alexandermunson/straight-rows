@@ -1,0 +1,44 @@
+tab  1: BUTTON tabInv [on] "Investigate" outline=auto 1px
+tab  2: BUTTON tabOps [] "Operator actions" outline=auto 1px
+tab  3: BUTTON tabSpec [] "Spectral" outline=auto 1px
+tab  4: INPUT  [] "" outline=auto 1px
+tab  5: INPUT  [] "" outline=auto 1px
+tab  6: INPUT  [] "" outline=auto 1px
+tab  7: BUTTON  [] "10 min" outline=auto 1px
+tab  8: BUTTON  [] "1 h" outline=auto 1px
+tab  9: BUTTON  [] "3 h" outline=auto 1px
+tab 10: BUTTON  [] "6 h" outline=auto 1px
+tab 11: BUTTON  [] "12 h" outline=auto 1px
+tab 12: BUTTON  [] "24 h" outline=auto 1px
+tab 13: BUTTON  [] "72 h" outline=auto 1px
+tab 14: BUTTON  [] "all" outline=auto 1px
+tab 15: SUMMARY  [] "Layers on the plots" outline=auto 1px
+tab 16: SELECT fCls [] "all causesequipment faultspoofingmultipa" outline=auto 1px
+tab 17: DIV events [] "Equipment faultT2D124 · 04 12:00Z · 2.0h" outline=auto 1px
+tab 18: BUTTON mapField [on] "Field" outline=auto 1px
+tab 19: BUTTON mapAll [] "Whole report area" outline=auto 1px
+tab 20: BUTTON mapOut [] "−" outline=auto 1px
+tab 21: BUTTON mapIn [] "+" outline=auto 1px
+tab 22: BODY  [] "Straight Rows
+    InvestigateOperator ac" outline=none 3px
+tab 23: BUTTON tabInv [on] "Investigate" outline=none 3px
+tab 24: BUTTON tabOps [] "Operator actions" outline=none 3px
+tab 25: BUTTON tabSpec [] "Spectral" outline=none 3px
+tab 26: INPUT  [] "" outline=none 3px
+tab 27: INPUT  [] "" outline=none 3px
+tab 28: INPUT  [] "" outline=none 3px
+tab 29: BUTTON  [] "10 min" outline=none 3px
+tab 30: BUTTON  [] "1 h" outline=none 3px
+tab 31: BUTTON  [] "3 h" outline=none 3px
+tab 32: BUTTON  [] "6 h" outline=none 3px
+tab 33: BUTTON  [] "12 h" outline=none 3px
+tab 34: BUTTON  [] "24 h" outline=none 3px
+tab 35: BUTTON  [] "72 h" outline=none 3px
+tab 36: BUTTON  [] "all" outline=none 3px
+tab 37: SUMMARY  [] "Layers on the plots" outline=none 3px
+tab 38: SELECT fCls [] "all causesequipment faultspoofingmultipa" outline=none 3px
+tab 39: DIV events [] "Equipment faultT2D124 · 04 12:00Z · 2.0h" outline=none 3px
+tab 40: BUTTON mapField [on] "Field" outline=none 3px
+Enter on the first event row -> selected null (row keeps focus: false)
+Space on the third event row -> selected nothing
+Operator lanes focusable: 0; Enter on the first -> card open: false, focus on: BODY

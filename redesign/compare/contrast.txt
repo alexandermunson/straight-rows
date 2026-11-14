@@ -1,0 +1,47 @@
+WCAG contrast of the design tokens (after fixing --ink-3 from #68717C, which failed on selected/hover rows at 4.15 and 4.42; text needs 4.5:1, graphical marks 3:1; control borders informational)
+
+[light]
+  text                               --ink    #16191D on --bg    #FAFAF9  16.88:1  need 4.5  PASS
+  secondary text                     --ink-2  #4A525C on --bg    #FAFAF9   7.58:1  need 4.5  PASS
+  tertiary text / axis labels        --ink-3  #5F6873 on --bg    #FAFAF9   5.41:1  need 4.5  PASS
+  text on selected row               --ink    #16191D on --sel   #E9EBEE  14.76:1  need 4.5  PASS
+  tertiary text on selected row      --ink-3  #5F6873 on --sel   #E9EBEE   4.73:1  need 4.5  PASS
+  tertiary text on hover             --ink-3  #5F6873 on --hover #F1F2F3   5.04:1  need 4.5  PASS
+  active button text (bg on ink)     --bg     #FAFAF9 on --ink   #16191D  16.88:1  need 4.5  PASS
+  warning text                       --warn   #B42318 on --bg    #FAFAF9   6.29:1  need 4.5  PASS
+  control border (non-text)          --line-2 #C9CDD2 on --bg    #FAFAF9   1.53:1  need 1.0  info
+  tractor T1 line                    --t1     #0072B2 on --bg    #FAFAF9   4.96:1  need 3  PASS
+  tractor T2 line                    --t2     #009E73 on --bg    #FAFAF9   3.28:1  need 3  PASS
+  tractor T3 line                    --t3     #3B424D on --bg    #FAFAF9   9.70:1  need 3  PASS
+  space weather mark                 --c-sw   #6A3D9A on --bg    #FAFAF9   7.32:1  need 3  PASS
+  jamming mark                       --c-jam  #D62728 on --bg    #FAFAF9   4.81:1  need 3  PASS
+  spoofing mark                      --c-spoof #E06A00 on --bg    #FAFAF9   3.23:1  need 3  PASS
+  equipment fault mark               --c-equip #8C6D31 on --bg    #FAFAF9   4.63:1  need 3  PASS
+  multipath mark                     --c-mp   #7F7F7F on --bg    #FAFAF9   3.83:1  need 3  PASS
+
+[dark]
+  text                               --ink    #E8EAED on --bg    #111316  15.44:1  need 4.5  PASS
+  secondary text                     --ink-2  #B4BBC4 on --bg    #111316   9.61:1  need 4.5  PASS
+  tertiary text / axis labels        --ink-3  #8C949E on --bg    #111316   6.07:1  need 4.5  PASS
+  text on selected row               --ink    #E8EAED on --sel   #22262C  12.61:1  need 4.5  PASS
+  tertiary text on selected row      --ink-3  #8C949E on --sel   #22262C   4.95:1  need 4.5  PASS
+  tertiary text on hover             --ink-3  #8C949E on --hover #1A1D21   5.51:1  need 4.5  PASS
+  active button text (bg on ink)     --bg     #111316 on --ink   #E8EAED  15.44:1  need 4.5  PASS
+  warning text                       --warn   #FF8A80 on --bg    #111316   8.15:1  need 4.5  PASS
+  control border (non-text)          --line-2 #3A4049 on --bg    #111316   1.78:1  need 1.0  info
+  tractor T1 line                    --t1     #56B4E9 on --bg    #111316   8.06:1  need 3  PASS
+  tractor T2 line                    --t2     #2BB98F on --bg    #111316   7.48:1  need 3  PASS
+  tractor T3 line                    --t3     #C9CED6 on --bg    #111316  11.77:1  need 3  PASS
+  space weather mark                 --c-sw   #A884D8 on --bg    #111316   6.16:1  need 3  PASS
+  jamming mark                       --c-jam  #FF6B6B on --bg    #111316   6.71:1  need 3  PASS
+  spoofing mark                      --c-spoof #FF9F43 on --bg    #111316   9.12:1  need 3  PASS
+  equipment fault mark               --c-equip #C9A35A on --bg    #111316   7.86:1  need 3  PASS
+  multipath mark                     --c-mp   #9AA0A6 on --bg    #111316   7.05:1  need 3  PASS
+
+[baseline, for reference] white chip text on cause colour (11 px bold, needs 4.5:1)
+  SPACE_WEATHER    #6a3d9a   7.64:1  PASS
+  JAMMING          #e31a1c   4.74:1  PASS
+  SPOOFING         #ff7f00   2.53:1  FAIL
+  EQUIPMENT_FAULT  #8c6d31   4.83:1  PASS
+  MULTIPATH        #7f7f7f   4.00:1  FAIL
+  T2 text #009E73 on white (old tractor-coloured labels): 3.42:1 FAIL

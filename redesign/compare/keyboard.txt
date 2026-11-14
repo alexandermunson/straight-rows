@@ -1,0 +1,43 @@
+tab  1: BUTTON tabInv [on] "Investigate" outline=solid 2px
+tab  2: BUTTON tabOps [] "Operator actions" outline=solid 2px
+tab  3: BUTTON tabSpec [] "Spectral" outline=solid 2px
+tab  4: INPUT  [] "" outline=solid 2px
+tab  5: INPUT  [] "" outline=solid 2px
+tab  6: INPUT  [] "" outline=solid 2px
+tab  7: BUTTON  [] "10 min" outline=solid 2px
+tab  8: BUTTON  [] "1 h" outline=solid 2px
+tab  9: BUTTON  [] "3 h" outline=solid 2px
+tab 10: BUTTON  [] "6 h" outline=solid 2px
+tab 11: BUTTON  [] "12 h" outline=solid 2px
+tab 12: BUTTON  [] "24 h" outline=solid 2px
+tab 13: BUTTON  [] "72 h" outline=solid 2px
+tab 14: BUTTON  [] "all" outline=solid 2px
+tab 15: SUMMARY  [] "Layers on the plots" outline=solid 2px
+tab 16: SELECT fCls [] "all causesequipment faultspoofingmultipa" outline=solid 2px
+tab 17: DIV events [] "Equipment faultT2✓ TRN-09D124 · 04 12:00" outline=solid 2px
+tab 18: DIV  [ev] "Equipment faultT2✓ TRN-09D124 · 04 12:00" outline=solid 2px
+tab 19: DIV  [ev] "SpoofingT2✓ TRN-06D155 · 04 13:12Z · 42m" outline=solid 2px
+tab 20: DIV  [ev] "MultipathT3✓ TRN-11D176 · 04 14:04Z · 17" outline=solid 2px
+tab 21: DIV  [ev] "Jammingall machines✓ TRN-03D250 · 04 16:" outline=solid 2px
+tab 22: DIV  [ev] "Jammingall machines✓ TRN-04D379 · 04 21:" outline=solid 2px
+tab 23: DIV  [ev] "SpoofingT1✓ TRN-07D483 · 05 00:30Z · 48m" outline=solid 2px
+tab 24: DIV  [ev] "Equipment faultT1✓ TRN-10D529 · 05 02:00" outline=solid 2px
+tab 25: DIV  [ev] "Space weatherall machines✓ TRN-01D560 · " outline=solid 2px
+tab 26: DIV  [ev] "Space weatherall machines✓ TRN-02D803 · " outline=solid 2px
+tab 27: DIV  [ev] "MultipathT1✓ TRN-12D804 · 05 19:00Z · 17" outline=solid 2px
+tab 28: DIV  [ev] "Jammingall machines✓ TRN-05D837 · 05 20:" outline=solid 2px
+tab 29: DIV  [ev] "SpoofingT3✓ TRN-08D878 · 05 21:33Z · 33m" outline=solid 2px
+tab 30: DIV  [ev] "Equipment faultT1D984 · 06 01:00Z · 60m0" outline=solid 2px
+tab 31: DIV  [ev] "Jammingall machinesD1017 · 06 02:12Z · 4" outline=solid 2px
+tab 32: DIV  [ev] "Space weatherall machinesD1097 · 06 13:0" outline=solid 2px
+tab 33: DIV  [ev] "SpoofingT1D1203 · 06 16:30Z · 42m0.80" outline=solid 2px
+tab 34: DIV  [ev] "Jammingall machinesD1264 · 06 18:30Z · 3" outline=solid 2px
+tab 35: DIV  [ev] "Equipment faultT2D1305 · 06 19:48Z · 41m" outline=solid 2px
+tab 36: DIV  [ev] "SpoofingT3D1366 · 06 21:48Z · 36m0.90" outline=solid 2px
+tab 37: BUTTON mapField [on] "Field" outline=solid 2px
+tab 38: BUTTON mapAll [] "Whole report area" outline=solid 2px
+tab 39: BUTTON mapOut [] "−" outline=solid 2px
+tab 40: BUTTON mapIn [] "+" outline=solid 2px
+Enter on the first event row -> selected D124 (row keeps focus: true)
+Space on the third event row -> selected D176
+Operator lanes focusable: 13; Enter on the first -> card open: true, focus on: SUMMARY
