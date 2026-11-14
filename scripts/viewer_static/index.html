@@ -8,7 +8,7 @@
 :root{
   /* design tokens (redesign/DESIGN.md). Canvases read the same tokens through readTheme() and css(). */
   color-scheme: light;
-  --bg:#FAFAF9; --ink:#16191D; --ink-2:#4A525C; --ink-3:#68717C;
+  --bg:#FAFAF9; --ink:#16191D; --ink-2:#4A525C; --ink-3:#5F6873;
   --line:#E2E4E7; --line-2:#C9CDD2; --grid:#EEEFF1; --hover:#F1F2F3; --sel:#E9EBEE; --warn:#B42318;
   --tipbg:rgba(250,250,249,.96);
   /* tractors (lines and dots) and causes (fills and marks; never used as a text colour) */
@@ -47,6 +47,7 @@ select{font:inherit;font-size:12px;height:24px;background:transparent;color:var(
 .seg{display:inline-flex} .seg>button{border-radius:0;margin-left:-1px} .seg>button:first-child{border-radius:4px 0 0 4px;margin-left:0}
 .seg>button:last-child{border-radius:0 4px 4px 0} .seg>button.on{position:relative}
 :focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+#events,#info,#ops,#spec{scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
 .sw{display:inline-block;width:12px;height:3px;border-radius:2px;flex:none}
 .cs{display:inline-block;width:8px;height:8px;border-radius:2px;flex:none}
 /* folds: the same chevron everywhere; default open/closed states are set where each fold is built */
@@ -440,13 +441,14 @@ function drawOverlays(c, rects, xOf, t0, t1, span) {
     c.setLineDash([]);
   }
   c.font = '600 10px ' + SANS; c.textBaseline = 'top'; c.textAlign = 'left';
+  const ink = css('--ink');
   for (const e of M.events) if (inView(e) && ((e.kind === 'DET' && S.dets) || (e.kind === 'TRUTH' && S.truth))) {
     const xa = Math.max(xOf(e.s), x0), wpx = xOf(e.e) - xOf(e.s); if (wpx < 26) continue;
     const lab = e.kind === 'DET' ? `${CLS[e.cls][1]} ${e.tr.join(',')} ${e.conf.toFixed(2)}` : `TRUTH ${e.id} ${CLS[e.cls][1]} ${e.tr.join(',')}`;
     const y = top + 3 + (e.kind === 'DET' ? 0 : 13);
     if (e.kind === 'DET') { c.fillStyle = CLS[e.cls][0]; c.fillRect(xa + 4, y + 1, 7, 7); }
     else { c.strokeStyle = CLS[e.cls][0]; c.lineWidth = 1.2; c.strokeRect(xa + 4.5, y + 1.5, 6, 6); }
-    c.fillStyle = css('--ink'); c.fillText(lab, xa + 14, y);
+    c.fillStyle = ink; c.fillText(lab, xa + 14, y);
   }
   if (S.mp && span <= 21600) {
     const r = rects[1];
@@ -578,7 +580,7 @@ function drawMap() {
   }
   c.fillStyle = css('--ink-2'); c.font = '600 11px ' + SANS; c.textAlign = 'left'; c.textBaseline = 'top';
   c.fillText('Field map' + (sel ? ` · ${sel.id}` : ''), 6, 4); c.font = '11px ' + SANS;
-  if (shownRfi.length && !MV.all) { c.fillStyle = css('--warn'); c.fillText('Report area extends past this view: use Whole report area', 6, 18); }
+  if (shownRfi.length && !MV.all) { c.fillStyle = css('--warn'); c.fillText('Report area goes past this view: Whole report area', 6, 18); }
 }
 
 // ------------------------------------------------------------------ operator tab: per-machine actions traced back to events

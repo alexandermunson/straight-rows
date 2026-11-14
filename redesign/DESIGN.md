@@ -13,7 +13,7 @@ One neutral base, no decorative colour. Colour carries exactly three meanings: *
 | `--bg` | `#FAFAF9` | `#111316` | the only surface; plots draw on it too (no white cards on grey) |
 | `--ink` | `#16191D` | `#E8EAED` | text, Kp line, active controls, selection outline |
 | `--ink-2` | `#4A525C` | `#B4BBC4` | secondary text |
-| `--ink-3` | `#68717C` | `#8C949E` | axis labels, meta (≥ 4.5:1 on `--bg`) |
+| `--ink-3` | `#5F6873` | `#8C949E` | axis labels, meta (≥ 4.5:1 on `--bg`) |
 | `--line` | `#E2E4E7` | `#262A30` | hairline separators |
 | `--line-2` | `#C9CDD2` | `#3A4049` | control borders, axis baselines |
 | `--grid` | `#EEEFF1` | `#1D2025` | gridlines (deliberately faint) |

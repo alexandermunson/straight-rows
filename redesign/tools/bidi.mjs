@@ -14,6 +14,7 @@ export async function launch({ port = 9333, width = 1600, height = 1000 } = {}) 
     'user_pref("datareporting.policy.dataSubmissionEnabled", false);',
     'user_pref("toolkit.telemetry.reportingpolicy.firstRun", false);',
     'user_pref("ui.prefersReducedMotion", 0);',
+    ...(process.env.DARK ? ['user_pref("layout.css.prefers-color-scheme.content-override", 0);', 'user_pref("ui.systemUsesDarkTheme", 1);'] : []),
   ].join('\n'));
   const proc = spawn('firefox', ['--headless', '--no-remote', '--profile', profile, `--remote-debugging-port=${port}`,
     `--width=${width}`, `--height=${height}`], { stdio: ['ignore', 'ignore', 'pipe'] });

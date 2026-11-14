@@ -5,7 +5,8 @@ import { STATES, SUB_STATES } from './states.mjs';
 
 const [base, out, mode] = process.argv.slice(2);
 mkdirSync(out, { recursive: true });
-const list = mode === 'sub' ? SUB_STATES : STATES;
+const DARK_SET = ['inv-sel-jam-source', 'inv-hover-tooltip', 'ops-card-open', 'spec-default', 'inv-layers-all-toggled'];
+const list = mode === 'sub' ? SUB_STATES : mode === 'dark' ? STATES.filter(s => DARK_SET.includes(s.name)).map(s => ({...s, name: 'dark-' + s.name})) : STATES;
 const B = await launch({ port: 9300 + Math.floor(Math.random() * 600) });
 const read = `return { tab: document.body.className, t0: Math.round(view.t0), t1: Math.round(view.t1), res: curRes, sel: S.sel,
   selId: S.sel >= 0 ? M.events[S.sel].id : null, vis: S.vis, layers: {truth: S.truth, dets: S.dets, mp: S.mp, base: S.base, xlog: S.xlog},
@@ -26,5 +27,5 @@ try {
     process.stdout.write(st.name + ' ');
   }
 } finally { await B.close(); }
-writeFileSync(`${out}/state${mode === 'sub' ? '-sub' : ''}.json`, JSON.stringify(result, null, 1));
+writeFileSync(`${out}/state${mode ? '-' + mode : ''}.json`, JSON.stringify(result, null, 1));
 console.log('\ndone', Object.keys(result).length);

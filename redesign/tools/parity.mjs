@@ -27,7 +27,7 @@ try {
     R.envelopes[a + '-' + b] = await B.json(`setTarget(${a}, ${b}, true); cssv = getComputedStyle(document.documentElement); drawBase();
       const L = LV[curRes], chs = ['cn0', 'mincn0', 'xte', 'sats', 'fix', 'link'], out = {res: curRes, panels: []};
       P.forEach((p, pi) => { const row = {y0: +p.y0.toFixed(4), y1: +p.y1.toFixed(4), env: []};
-        if (pi < 6) for (let tr = 0; tr < 3; tr++) { const d = dec(L.a[tr][CH[chs[pi]]], curRes, p.r.x, p.r.w, ${a}, ${b}, pi === 2 && S.xlog ? (v => Math.log10(1 + v / 0.1)) : null);
+        if (pi < 6) for (let tr = 0; tr < 3; tr++) { const d = dec(L.a[tr][CH[chs[pi]]], curRes, p.r.x, 800, ${a}, ${b}, pi === 2 && S.xlog ? (v => Math.log10(1 + v / 0.1)) : null);
           let s = 0, n = 0; if (d.mode === 1) { for (let c = 0; c < d.W; c++) if (d.mn[c] !== Infinity) { s += d.mn[c] * 1.7 + d.mx[c] * 0.3; n++; } } else { for (let i = d.i0; i < d.i1; i++) { const v = L.a[tr][CH[chs[pi]]][i]; if (v === v) { s += v; n++; } } }
           row.env.push([d.mode, n, +s.toFixed(3), +d.lo.toFixed(4), +d.hi.toFixed(4)].join()); }
         out.panels.push(row); });
