@@ -382,6 +382,26 @@ def _sda_plain(c, p):
     return " ".join(out)
 
 
+def _sda_key(c, p, cls):
+    """The one or two feed facts that decided the call, for the headline reason (full detail stays in the feeds section)."""
+    s4, out = c["s4"], []
+    if cls == "SPACE_WEATHER":
+        if s4["elevated"]:
+            out.append(f"The space-weather feeds agree: the ionospheric scintillation index S4 averaged {s4['mean']:.2f} during the event, "
+                       f"against a quiet level of {s4['base']:.2f}.")
+        if np.isfinite(c["kp_max"]) and c["kp_max"] >= p.kp_high:
+            out.append(f"Geomagnetic activity (Kp) reached {c['kp_max']:.1f}, where {p.kp_high:g} or more means a storm.")
+        if any(str(a_.get("type", "")).upper() == "SPACE_WEATHER" for a_ in c["advisories"]):
+            out.append("A geomagnetic storm advisory was also in force.")
+    elif cls == "JAMMING":
+        hits = [r for r in c["rfi"] if r["_within"]]
+        if hits:
+            r = hits[0]
+            out.append(f"An interference report ({r.get('id', 'unnamed')}) filed {r['_delay_min']:.0f} minutes after the start places a source "
+                       + (f"about {r['_dist_km']:.1f} km from the machines." if "_dist_km" in r else "near the machines."))
+    return " ".join(out) + (" " if out else "")
+
+
 def _machine_plain(t, s):
     loss = -s["cn0_dev_mean"]
     sig = (f"signal strength averaged {s['cn0_mean']:.1f} dB-Hz, {loss:.1f} dB below its normal {s['cn0_base']:.1f}" if loss >= 1
@@ -416,7 +436,7 @@ def explain(c, p: Params, conf, terms):
                        "running at the same time; the reflection is the steadier part of the dip. " if deep else "")
                     + (f"During the dip {t} tracked {m['sats_min']:.0f} satellites (typically {m['sats_base']:.0f} around then) and was at most {m['xte_max']:.2f} m off its line."
                        if others else f"Nothing else moved: {t} kept {m['sats_min']:.0f} of its usual {m['sats_base']:.0f} satellites and was never more than {m['xte_max']:.2f} m off its line.")))
-        out.append(("Why we think it is a reflection", f"The dip happens at one fixed place, the headland at "
+        out.append(("Why this is marked as multipath (a harmless reflection)", f"The dip happens at one fixed place, the headland at "
                     f"{abs(m['spot'][0]):.5f}{'N' if m['spot'][0] >= 0 else 'S'} {abs(m['spot'][1]):.4f}{'E' if m['spot'][1] >= 0 else 'W'}, inside a strip only "
                     f"{p.mp_band_m:.0f} m wide. We found the same dip {m['n_total']} times over the three days"
                     + (f" ({m['n_window']} of them in the period shown)" if m['n_window'] != m['n_total'] else "") + f", {per} as "
@@ -424,7 +444,7 @@ def explain(c, p: Params, conf, terms):
                     + (f"{_machines(m['peers'])} showed the same dip within 45 seconds on this pass, so it belongs to the place, not to one machine. "
                        if m["peers"] else "No other machine was at the spot on this pass. ")
                     + "A brief dip on one satellite's signal that repeats at the same location is what a signal bouncing off a nearby obstruction looks like."))
-        out.append(("What else it could be", (overlap + " The dip is measured against the machine's own level at that moment, so it is counted as a "
+        out.append(("Why not something else", (overlap + " The dip is measured against the machine's own level at that moment, so it is counted as a "
                     "separate, harmless effect on top of the other event.") if overlap else f"Jamming or space weather would lower the average signal on all satellites and last minutes, not seconds; "
                     f"the average did not move. An antenna fault would cost satellites and produce dips deeper than {p.mp_dip_max_db:.0f} dB; the satellite "
                     "count held. Spoofing would pull the machine off its line; it stayed on."))
@@ -450,7 +470,7 @@ def explain(c, p: Params, conf, terms):
             why = ("Every working machine lost signal at the same moment and by the same amount"
                    + ((f" (the loss differs by only {sp:.1f} dB between machines)" if sp >= 0.05 else " (the loss differs by less than 0.1 dB between machines)") if sp is not None else "")
                    + ". A disturbance in the ionosphere is far above the field, so it treats every receiver alike; a transmitter on the ground "
-                   "would hit the nearest machine hardest. " + together)
+                   "would hit the nearest machine hardest. " + _sda_key(c, p, cls) + together)
             lg = stat.get("lag")
             if lg:
                 why += (f" Over the three hours either side, the fleet's signal loss tracks the scintillation index closely (correlation {abs(lg['r']):.2f}, "
@@ -460,8 +480,8 @@ def explain(c, p: Params, conf, terms):
             lead = (a - c["kp_ts"]).total_seconds() / 60 if c["kp_ts"] is not None else -1
             if lead > 0 and c["kp_max"] >= p.kp_high:
                 why += f" The geomagnetic reading turned stormy {lead:.0f} minutes before the machines felt it, which is the order you expect from a storm."
-            out.append(("Why we think it is space weather", why))
-            out.append(("What else it could be", "A single-machine fault is ruled out because every machine was affected identically. A distant jammer could "
+            out.append(("Why this is marked as space weather", why))
+            out.append(("Why not something else", "A single-machine fault is ruled out because every machine was affected identically. A distant jammer could "
                         "in principle look this uniform, but nothing points to one. If a jammer switches on during the storm it shows up as a sudden "
                         "extra drop on top of the storm level, and we report that separately. " + overlap))
         elif cls == "JAMMING":
@@ -477,8 +497,8 @@ def explain(c, p: Params, conf, terms):
                         "(the two storms in the labeled data differ by 0.1 dB or less), so unequal loss points to a source on the ground that is closer to some machines than others. "
                         if sp >= p.uniform_spread_db else
                         f"The machines were hit almost equally (within {sp:.1f} dB), which by itself does not separate a distant jammer from a storm. ")
-            why += together
-            out.append(("Why we think it is jamming", why))
+            why += _sda_key(c, p, cls) + together
+            out.append(("Why this is marked as jamming", why))
             alt = ("Space weather is the main alternative. " + ("The ionosphere was calm at the time, which argues against it. " if s4["elevated"] is False
                    else "The ionosphere was disturbed at the time, so part of the loss is the storm; the abrupt extra step is what we attribute to jamming, and that is why confidence is low. " if s4["elevated"]
                    else "We have no scintillation reading, so we cannot use it either way. ")
@@ -486,7 +506,7 @@ def explain(c, p: Params, conf, terms):
                    "during this event, but that is what happens when the signal is drowned out, so we do not call it spoofing. ")
             if not any(r["_within"] for r in c["rfi"]):
                 alt += "No interference report backs this up, so the call rests on the machines' own data. "
-            out.append(("What else it could be", alt + overlap))
+            out.append(("Why not something else", alt + overlap))
         elif cls == "SPOOFING":
             t0 = st[tr[0]]
             dr = (stat.get("drift") or {}).get(tr[0])
@@ -502,8 +522,8 @@ def explain(c, p: Params, conf, terms):
                 why += (f"{len(tr)} machines were pulled at once, so there was no unaffected neighbour to compare against; that is why confidence is reduced. ")
             elif nb:
                 why += "The neighbouring machines stayed on their lines (" + ", ".join(f"{n} at most {s['xte_max']:.2f} m" for n, s in nb.items()) + "), so the field and the task were not the cause. "
-            out.append(("Why we think it is spoofing", why))
-            out.append(("What else it could be", ("A storm was active or recent, and a disturbed ionosphere can also degrade position, which is why confidence is reduced; "
+            out.append(("Why this is marked as spoofing", why))
+            out.append(("Why not something else", ("A storm was active or recent, and a disturbed ionosphere can also degrade position, which is why confidence is reduced; "
                         "but a storm would lower this machine's signal and affect its neighbours too. " if c["s4"]["elevated"] or c["kp_max"] >= p.kp_high
                         else "Space weather was quiet. ") + "Jamming would show as lost signal, and an antenna or link fault would show as lost satellites or a dropped "
                         "correction link; none of those happened. " + overlap))
@@ -523,10 +543,10 @@ def explain(c, p: Params, conf, terms):
                     + "). Anything in the sky or on the air would have reached them too. ")
             fl = (stat.get("fleet") or {}).get(tr[0])
             if fl and np.isfinite(fl.get("r2", np.nan)):
-                why += (f"Its signal went up and down independently of the rest of the fleet (only {100 * fl['r2']:.0f}% of the variation is shared), which again points at the machine. "
+                why += (f"Its signal went up and down independently of the rest of the fleet ({'almost none' if fl['r2'] < 0.005 else f"only {100 * fl['r2']:.0f}%"} of the variation is shared), which again points at the machine. "
                         if fl["r2"] < 0.3 else f"Its signal does follow the fleet's to some degree ({100 * fl['r2']:.0f}% shared), so a common cause cannot be fully excluded. ")
-            out.append(("Why we think it is an equipment fault", why))
-            out.append(("What else it could be", "Jamming and space weather are ruled out because they would affect the neighbours. Spoofing is ruled out because the machine "
+            out.append(("Why this is marked as an equipment fault", why))
+            out.append(("Why not something else", "Jamming and space weather are ruled out because they would affect the neighbours. Spoofing is ruled out because the machine "
                         f"stayed on its line (at most {t0['xte_max']:.2f} m off). "
                         + ("An interference report is listed above for completeness, but its timing fits a different event and this call does not rely on it. " if c["rfi"] else "")
                         + overlap))

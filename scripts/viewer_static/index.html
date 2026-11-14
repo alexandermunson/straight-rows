@@ -481,8 +481,10 @@ function select(i, go) {
     `<div class="meta">${e.tr.join(', ')} · ${fmtT(e.s, true)} → ${fmtT(e.e, true)} (${((e.e - e.s) / 60).toFixed(1)} min)` +
     `${e.conf != null ? ' · confidence ' + e.conf.toFixed(2) : ''}<br>action ${esc(e.action)}${others.length ? '<br>overlaps: ' + esc(others.join('; ')) : ''}</div>` +
     ((e.why || []).length
-      ? e.why.map(([h, t]) => `<h4 class="why">${esc(h)}</h4><p class="why">${esc(t)}</p>`).join('') +
-        `<details><summary>Measurements as submitted (${e.ev.length} evidence lines)</summary><ul>` + e.ev.map(s => `<li>${esc(s)}</li>`).join('') + '</ul></details>'
+      ? (() => { const sec = ([h, t]) => `<h4 class="why">${esc(h)}</h4><p class="why">${esc(t)}</p>`, main = ([h]) => h.startsWith('Why');
+          return e.why.filter(main).map(sec).join('') +
+            `<details><summary>More detail (what was measured, the feeds, action, confidence)</summary>` + e.why.filter(x => !main(x)).map(sec).join('') + '</details>' +
+            `<details><summary>Measurements as submitted (${e.ev.length} evidence lines)</summary><ul>` + e.ev.map(s => `<li>${esc(s)}</li>`).join('') + '</ul></details>'; })()
       : (e.ev.length ? '<ul>' + e.ev.map(s => `<li>${esc(s)}</li>`).join('') + '</ul>' : '<i>labelled episode (no evidence text)</i>'));
   dirtyBase = true; scheduleHash();
 }
