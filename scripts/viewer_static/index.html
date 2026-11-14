@@ -525,8 +525,8 @@ function drawMap() {
   const px = lon => ox + (lon - lo0) * cl * s, py = lat => oy + (la1 - lat) * s;     // raw degrees
   MV.s = s; MV.cl = cl;                             // pixels per degree of latitude, for the pointer handlers
   c.save(); c.beginPath(); c.rect(1, 18, w - 2, h - 19); c.clip();
-  c.strokeStyle = css('--grid'); c.lineWidth = 1;   // outline of the field itself
-  c.strokeRect(px(F.lon[0]), py(F.lat[1]), (F.lon[1] - F.lon[0]) * cl * s, (F.lat[1] - F.lat[0]) * s);
+  c.strokeStyle = css('--line-2'); c.lineWidth = 1; c.setLineDash([2, 3]);   // outline of the field itself
+  c.strokeRect(px(F.lon[0]), py(F.lat[1]), (F.lon[1] - F.lon[0]) * cl * s, (F.lat[1] - F.lat[0]) * s); c.setLineDash([]);
   const span = view.t1 - view.t0, res = span <= 5400 ? 1 : span <= 64800 ? 10 : 60, L = LV[res];
   const sel = S.sel >= 0 ? M.events[S.sel] : null;
   if (L) {
@@ -544,18 +544,18 @@ function drawMap() {
       const j = clamp(i1 - 1, 0, L.n - 1); if (la[j] === la[j]) { c.fillStyle = TC[tr]; c.strokeStyle = css('--bg'); c.beginPath(); c.arc(px(lo[j] + M.lon0), py(la[j] + M.lat0), 5, 0, 7); c.fill(); c.stroke(); }
     }
   }
-  if (S.mp && M.mp_lat !== null) { const y = py(M.mp_lat); c.strokeStyle = css('--ink-3'); c.setLineDash([5, 4]); c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); c.setLineDash([]); c.fillStyle = css('--muted'); c.font = '10px system-ui'; c.textAlign = 'left'; c.fillText('multipath band (headland)', 6, y - 3); }
+  if (S.mp && M.mp_lat !== null) { const y = py(M.mp_lat); c.strokeStyle = css('--ink-3'); c.setLineDash([5, 4]); c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); c.setLineDash([]); c.fillStyle = css('--muted'); c.font = '10px ' + SANS; c.textAlign = 'left'; c.fillText('multipath band (headland)', 6, y - 3); }
   for (const q of shownRfi) {
     const cx = px(q.lon), cy = py(q.lat), rpx = Math.max(2, q.b * 1000 / 111320 * s), rpy = Math.max(2, q.a * 1000 / 111320 * s);
     c.strokeStyle = CLS.JAMMING[0]; c.lineWidth = 1.3; c.beginPath(); c.ellipse(cx, cy, rpx, rpy, 0, 0, 7); c.stroke();
     c.beginPath(); c.moveTo(cx - 4, cy - 4); c.lineTo(cx + 4, cy + 4); c.moveTo(cx + 4, cy - 4); c.lineTo(cx - 4, cy + 4); c.stroke();
-    c.fillStyle = CLS.JAMMING[0]; c.font = '10px system-ui'; c.textAlign = 'left'; c.fillText('RFI ' + q.id, cx + 6, cy - 5);
+    c.fillStyle = css('--ink-2'); c.font = '10px ' + MONO; c.textAlign = 'left'; c.fillText('RFI ' + q.id, cx + 6, cy - 5);
   }
   if (selSrc) {                                   // estimated jammer position for the selected detection, with its 95 % region
     const cx = px(selSrc.lon), cy = py(selSrc.lat), r = Math.max(4, selSrc.radius_m / 111320 * s);
     c.fillStyle = CLS.JAMMING[0] + '26'; c.strokeStyle = CLS.JAMMING[0]; c.lineWidth = 1.5; c.beginPath(); c.arc(cx, cy, r, 0, 7); c.fill(); c.stroke();
     c.beginPath(); c.moveTo(cx - 6, cy); c.lineTo(cx + 6, cy); c.moveTo(cx, cy - 6); c.lineTo(cx, cy + 6); c.stroke();
-    c.fillStyle = CLS.JAMMING[0]; c.font = '10px system-ui'; c.textAlign = 'left';
+    c.fillStyle = css('--ink-2'); c.font = '10px ' + SANS; c.textAlign = 'left';
     const lab = `estimated source (±${selSrc.radius_m.toFixed(0)} m)`, lw = c.measureText(lab).width;
     if (cx + r + 6 + lw > w - 4) { c.textAlign = 'right'; c.fillText(lab, cx - r - 6, cy + 3); } else c.fillText(lab, cx + r + 6, cy + 3);
   }
@@ -564,10 +564,10 @@ function drawMap() {
     const mPerPx = 111320 / s, want = mPerPx * w / 5, nice = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000].reduce((a, b) => Math.abs(b - want) < Math.abs(a - want) ? b : a);
     const len = nice / mPerPx, x0 = w - 12 - len, y0 = h - 10;
     c.strokeStyle = css('--text'); c.lineWidth = 1.5; c.beginPath(); c.moveTo(x0, y0 - 4); c.lineTo(x0, y0); c.lineTo(x0 + len, y0); c.lineTo(x0 + len, y0 - 4); c.stroke();
-    c.fillStyle = css('--text'); c.font = '10px system-ui'; c.textAlign = 'center'; c.textBaseline = 'bottom'; c.fillText(nice >= 1000 ? nice / 1000 + ' km' : nice + ' m', x0 + len / 2, y0 - 3);
+    c.fillStyle = css('--text'); c.font = '10px ' + MONO; c.textAlign = 'center'; c.textBaseline = 'bottom'; c.fillText(nice >= 1000 ? nice / 1000 + ' km' : nice + ' m', x0 + len / 2, y0 - 3);
   }
-  c.fillStyle = css('--muted'); c.font = '11px system-ui'; c.textAlign = 'left'; c.textBaseline = 'top';
-  c.fillText('Field map' + (sel ? ` · ${sel.id}` : ''), 6, 4);
+  c.fillStyle = css('--ink-2'); c.font = '600 11px ' + SANS; c.textAlign = 'left'; c.textBaseline = 'top';
+  c.fillText('Field map' + (sel ? ` · ${sel.id}` : ''), 6, 4); c.font = '11px ' + SANS;
   if (shownRfi.length && !MV.all) { c.fillStyle = css('--warn'); c.fillText('Report area extends past this view: use Whole report area', 6, 18); }
 }
 
