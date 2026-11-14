@@ -399,7 +399,13 @@ function drawMap() {
   c.fillStyle = css('--plotbg'); c.fillRect(0, 0, w, h);
   if (!M) return;
   const F = M.field, cl = Math.cos(M.lat0 * Math.PI / 180);
-  const padLat = 0.0015, la0 = F.lat[0] - padLat, la1 = F.lat[1] + padLat, lo0 = F.lon[0] - padLat / cl, lo1 = F.lon[1] + padLat / cl;
+  const padLat = 0.0015; let la0 = F.lat[0] - padLat, la1 = F.lat[1] + padLat, lo0 = F.lon[0] - padLat / cl, lo1 = F.lon[1] + padLat / cl;
+  const selSrc = S.sel >= 0 && M.events[S.sel].src ? M.events[S.sel].src : null;
+  if (selSrc) {                                   // widen the map so the estimated transmitter position is on it
+    const m = (selSrc.radius_m + 60) / 111320;
+    la0 = Math.min(la0, selSrc.lat - m); la1 = Math.max(la1, selSrc.lat + m);
+    lo0 = Math.min(lo0, selSrc.lon - m / cl); lo1 = Math.max(lo1, selSrc.lon + m / cl);
+  }
   const mw = (lo1 - lo0) * cl, mh = la1 - la0, s = Math.min((w - 16) / mw, (h - 30) / mh);
   const ox = (w - mw * s) / 2, oy = 22 + (h - 30 - mh * s) / 2;
   const px = lon => ox + (lon - lo0) * cl * s, py = lat => oy + (la1 - lat) * s;     // raw degrees
@@ -428,6 +434,13 @@ function drawMap() {
     c.strokeStyle = '#e31a1c'; c.lineWidth = 1.3; c.beginPath(); c.ellipse(cx, cy, rpx, rpy, 0, 0, 7); c.stroke();
     c.beginPath(); c.moveTo(cx - 4, cy - 4); c.lineTo(cx + 4, cy + 4); c.moveTo(cx + 4, cy - 4); c.lineTo(cx - 4, cy + 4); c.stroke();
     c.fillStyle = '#e31a1c'; c.font = '10px system-ui'; c.textAlign = 'left'; c.fillText('RFI ' + q.id, cx + 6, cy - 5);
+  }
+  if (selSrc) {                                   // estimated jammer position for the selected detection, with its 95 % region
+    const cx = px(selSrc.lon), cy = py(selSrc.lat), r = Math.max(4, selSrc.radius_m / 111320 * s);
+    c.fillStyle = '#d6272833'; c.strokeStyle = '#d62728'; c.lineWidth = 1.5; c.beginPath(); c.arc(cx, cy, r, 0, 7); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(cx - 6, cy); c.lineTo(cx + 6, cy); c.moveTo(cx, cy - 6); c.lineTo(cx, cy + 6); c.stroke();
+    c.fillStyle = '#d62728'; c.font = '10px system-ui'; c.textAlign = 'left';
+    c.fillText(`estimated source (±${selSrc.radius_m.toFixed(0)} m)`, cx + r + 4, cy + 3);
   }
   c.restore();
   c.fillStyle = css('--muted'); c.font = '11px system-ui'; c.textAlign = 'left'; c.textBaseline = 'top';

@@ -277,6 +277,9 @@ def to_submission(cands, p, handle, repo_url, display_name=None, plain=False):
         })
         if plain:
             dets[-1]["reasoning"] = explain(c, p, conf, terms)
+            sf = (c.get("ax") or {}).get("source")
+            if c["cls"] == "JAMMING" and sf and not sf.get("flat") and sf["r2"] >= 0.9:
+                dets[-1]["source"] = dict(lat=sf["lat"], lon=sf["lon"], radius_m=sf["radius_m"], r2=sf["r2"])
     if len(dets) > p.max_detections:     # validator limit; thin the recurring multipath reports evenly, never real episodes
         mp = [d for d in dets if d["class"] == "MULTIPATH"]
         other = [d for d in dets if d["class"] != "MULTIPATH"]
@@ -599,6 +602,7 @@ def analysis_evidence(c, p: Params):
         else:
             out.append(f"Ground-source test: a single transmitter at {sf['lat']:.4f}, {sf['lon']:.4f} explains {100 * sf['r2']:.1f}% of the variation in loss across "
                        f"machines and time (n={sf['n']}), falling {abs(sf['slope']):.1f} dB per tenfold distance (free space is 20); "
+                       f"95% region within {sf['radius_m']:.0f} m of that point if the distance model holds; "
                        + "; ".join(f"{t} {v['dist']:.0f} m away lost {v['loss']:.1f} dB" for t, v in sf["per"].items())
                        + (f"; {sf['rfi_km']:.1f} km from the centre of {sf['rfi_id']}." if "rfi_km" in sf else "."))
     if fx:
@@ -653,6 +657,8 @@ def analysis_plain(c, p: Params):
             why.append(f"The strongest evidence is geometric. If we assume one transmitter on the ground and ask where it would have to be, a single spot "
                        f"({sf['lat']:.4f}, {sf['lon']:.4f}) explains {100 * sf['r2']:.1f}% of how the loss rose and fell on every machine as they drove up and down the field. "
                        f"The loss weakens by {abs(sf['slope']):.1f} dB for every tenfold increase in distance from that spot; radio waves in open air weaken by 20. "
+                       f"The data pin the spot down to within about {sf['radius_m']:.0f} m (shown on the map), about {sf['field_dist_m']:.0f} m from the nearest point any machine reached. "
+                       "That precision assumes signal falls off smoothly with distance, which holds in this data but would be rougher over real terrain. "
                        + " ".join(f"{t}, on average {v['dist']:.0f} m from it, lost {v['loss']:.1f} dB." for t, v in sf["per"].items())
                        + (f" That spot is {sf['rfi_km']:.1f} km from the centre of interference report {sf['rfi_id']}, inside the report's stated uncertainty."
                           if "rfi_km" in sf else " No interference report exists for this event, so this fit is the main independent support for it.")

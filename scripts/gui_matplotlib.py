@@ -150,7 +150,7 @@ class Data:
             sub = json.loads(Path(sub).read_text())
         self.dets = [dict(kind="DET", id=f"D{i + 1:03d}", cls=d["class"], tractors=d["tractors"], start=naive(d["start"]),
                           end=naive(d["end"]), conf=d["confidence"], evidence=d["evidence"], action=d["action"],
-                          reasoning=d.get("reasoning", []))
+                          reasoning=d.get("reasoning", []), source=d.get("source"))
                      for i, d in enumerate(sorted(sub["detections"], key=lambda d: d["start"]))]
         if not self.mp:
             self.mp = [(d["tractors"][0], d["start"], d["end"]) for d in self.dets if d["cls"] == "MULTIPATH"]

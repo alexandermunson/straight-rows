@@ -124,9 +124,25 @@ class Analysis:
         x0, y0, _, _ = search(np.arange(cx - 3000, cx + 3001, 100), np.arange(cy - 3000, cy + 3001, 100))
         x0, y0, B, sse = search(np.arange(x0 - 100, x0 + 101, 10), np.arange(y0 - 100, y0 + 101, 10))
         lat, lon = _xy_to_latlon(x0, y0)
+        # 95 % confidence region of the position: every grid point whose misfit is statistically indistinguishable from
+        # the best one (F test, 3 fitted parameters). 10 s bins are autocorrelated, so n is counted in 60 s blocks.
+        n_eff = max(8.0, len(ls) * self.p.bin_s / self.p.corr_block_s)
+        f95 = 2.7 if n_eff > 60 else 3.1                       # F(0.95; 3, n_eff - 3), tabulated; flat above ~60 dof
+        limit = sse * (1.0 + 3.0 * f95 / (n_eff - 3.0))
+        gx, gy = np.arange(x0 - 600, x0 + 601, 20), np.arange(y0 - 600, y0 + 601, 20)
+        GX, GY = np.meshgrid(gx, gy, indexing="ij")
+        ld = np.log10(np.hypot(xs[None, None, :] - GX[..., None], ys[None, None, :] - GY[..., None]) + 1.0)
+        ldm = ld.mean(axis=2, keepdims=True)
+        sxx = ((ld - ldm) ** 2).sum(axis=2)
+        Bg = ((ld - ldm) * (ls - ls.mean())).sum(axis=2) / np.where(sxx > 0, sxx, np.nan)
+        inside = (sst - Bg ** 2 * sxx) <= limit
+        radius = float(np.hypot(GX[inside] - x0, GY[inside] - y0).max()) if inside.any() else 0.0
+        radius = max(radius, 10.0)                             # never tighter than the search grid
         per = {tr: dict(dist=float(np.hypot(xs[who == tr] - x0, ys[who == tr] - y0).mean()), loss=float(ls[who == tr].mean()))
                for tr in TRACTORS if (who == tr).any()}
-        out.update(r2=1.0 - sse / sst, slope=B, x=x0, y=y0, lat=float(lat), lon=float(lon), per=per, flat=False)
+        out.update(r2=1.0 - sse / sst, slope=B, x=x0, y=y0, lat=float(lat), lon=float(lon), per=per, flat=False,
+                   radius_m=radius, radius_capped=bool(radius >= 590.0),
+                   field_dist_m=float(np.hypot(xs - x0, ys - y0).min()))
         hits = [r for r in c.get("rfi", []) if r.get("_within")]
         for r in hits[:1]:
             latc = next((v for k, v in r.items() if str(k).lower() in ("lat", "latitude", "centerlat", "center_lat")), None)

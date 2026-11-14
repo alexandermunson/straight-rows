@@ -61,7 +61,7 @@ def build_meta(d: Data) -> dict:
     for e in d.events:
         events.append(dict(kind=e["kind"], id=e["id"], cls=e["cls"], tr=e["tractors"], s=sec(e["start"]), e=sec(e["end"]),
                            conf=e["conf"], action=e.get("action", ""), ev=e["evidence"],
-                           why=[list(x) for x in e.get("reasoning", [])]))
+                           why=[list(x) for x in e.get("reasoning", [])], src=e.get("source")))
     series = lambda df, col: [[sec(t), float(v)] for t, v in zip(df["ts"], df[col])]
     fl = lambda x: float(x) if x is not None and np.isfinite(x) else None
     rfi = []
