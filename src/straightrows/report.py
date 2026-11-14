@@ -842,7 +842,23 @@ def operator_card(c, p: Params, conf, terms):
         cost = (f"Only {tr[0]} stops for service. Stopping the whole fleet instead would have cost a further {len(others) * mins / 60:.1f} machine-hours.")
     else:
         return None
-    return dict(head=ACTION_HEAD[ACTION[cls]], action=ACTION[cls], farm=farm, unaffected=unaffected, sda=sda, link=" ".join(link.split()),
+    worst = max(s_["xte_max"] for s_ in st.values())
+    losses = sorted(-s_["cn0_dev_mean"] for s_ in st.values())
+    loss_txt = f"{losses[0]:.0f} dB" if losses[-1] - losses[0] < 1 else f"{losses[0]:.0f} to {losses[-1]:.0f} dB"
+    if cls == "SPACE_WEATHER":
+        brief = f"Every machine lost {loss_txt} of signal together during a geomagnetic storm."
+    elif cls == "JAMMING":
+        brief = (f"{'All' if len(tr) == 3 else len(tr)} machines abruptly lost {loss_txt} of signal"
+                 + (" on top of a storm" if in_storm else " with the sky quiet")
+                 + ("; an interference report matches." if rfi_hit else "; no interference report, but one ground source fits."
+                    if src_ok else "; no interference report."))
+    elif cls == "SPOOFING":
+        brief = f"{tr[0]} drifted {worst:.1f} m off its line while its signal and fix looked healthy."
+    elif c.get("mode") == "link":
+        brief = f"{tr[0]}'s correction link kept dropping out ({100 * (1 - st[tr[0]]['link_frac']):.0f}% of the time); the other machines were fine."
+    else:
+        brief = f"{tr[0]} kept dropping individual satellites; the other machines were fine."
+    return dict(brief=brief, head=ACTION_HEAD[ACTION[cls]], action=ACTION[cls], farm=farm, unaffected=unaffected, sda=sda, link=" ".join(link.split()),
                 ambiguity=" ".join(amb), change=" ".join(change), cost=cost, wrong=wrong, conf=_confidence_plain(conf, terms),
                 overlap=[f"{PLAIN_CLASS[o['cls']]} on {_machines(o['tractors'])}, {fmts(o['start'])} to {fmts(o['end'])}"
                          for o in c.get("concurrent", []) if o["cls"] != cls and o["cls"] != "MULTIPATH"])
