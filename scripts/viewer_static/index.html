@@ -59,10 +59,10 @@ section{display:flex;flex-direction:column;padding:8px;gap:8px;overflow:hidden}
 #info ul{margin:6px 0 0;padding-left:16px} #info li{margin:0 0 5px}
 #status{position:absolute;right:8px;top:6px;font-size:11px;color:var(--muted);background:var(--panel);padding:1px 6px;border-radius:10px;border:1px solid var(--border);z-index:5}
 kbd{background:var(--bg);border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;padding:0 4px;font-size:11px}
-#tabs{display:flex;gap:6px} #tabs button{flex:1;padding:5px 6px;font-weight:600}
-#ops{display:none;grid-column:2 / -1;background:var(--panel);border:1px solid var(--border);border-radius:8px;min-height:0;overflow:auto;padding:18px 22px}
-body.ops main, body.ops section{display:none} body.ops #ops{display:block}
-body.ops aside>*:not(h1):not(#tabs){display:none} body.ops #app{grid-template-columns:180px minmax(0,1fr) 0}
+#tabs{display:flex;flex-wrap:wrap;gap:6px} #tabs button{flex:1 1 auto;padding:5px 6px;font-weight:600}
+#ops,#spec{display:none;grid-column:2 / -1;background:var(--panel);border:1px solid var(--border);border-radius:8px;min-height:0;overflow:auto;padding:18px 22px}
+body.ops main, body.ops section, body.spec main, body.spec section{display:none} body.ops #ops, body.spec #spec{display:block}
+body.ops aside>*:not(h1):not(#tabs), body.spec aside>*:not(h1):not(#tabs){display:none} body.ops #app, body.spec #app{grid-template-columns:180px minmax(0,1fr) 0}
 #ops .top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
 #ops h2{font-size:18px;text-transform:none;letter-spacing:0;color:var(--text);margin:0;flex:1}
 #ops .lanes{border:1px solid var(--border);border-radius:8px;padding:10px 14px 6px;margin-bottom:8px}
@@ -86,6 +86,13 @@ details.card>summary::-webkit-details-marker{display:none}
 .ok{border:1px dashed var(--border);border-radius:6px;padding:7px 11px;margin:0 0 8px;color:var(--muted);font-size:12px;line-height:1.45}
 #ops table{border-collapse:collapse;margin:8px 0} #ops td,#ops th{border:1px solid var(--border);padding:3px 9px;text-align:left;font-size:12px}
 #ops details.trust{margin:0 0 16px;font-size:12px;color:var(--muted)} #ops details.trust summary{cursor:pointer} #ops details.trust div{max-width:100ch;line-height:1.5;margin-top:6px;color:var(--text)}
+#spec h2{font-size:18px;text-transform:none;letter-spacing:0;color:var(--text);margin:0;flex:1} #spec .top{display:flex;align-items:center;margin-bottom:8px}
+#spec h3{margin:20px 0 4px;font-size:15px} #spec .lead{max-width:100ch;line-height:1.55;margin:0 0 10px}
+#spec .ctl{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin:10px 0} #spec .trs{display:flex;gap:12px}
+#spec .sum{font-size:13px;margin:0 0 8px} #spec canvas{width:100%;display:block;border:1px solid var(--border);border-radius:6px}
+#spec table{border-collapse:collapse;margin:10px 0} #spec td,#spec th{border:1px solid var(--border);padding:3px 9px;text-align:left;font-size:12px}
+#spec details.trust{margin:0 0 8px;font-size:12px;color:var(--muted)} #spec details.trust summary{cursor:pointer} #spec details.trust div{max-width:100ch;line-height:1.5;margin-top:6px;color:var(--text)}
+#spec .key{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin:8px 0 0} #spec .key i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
 .legend{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:11px;color:var(--muted)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 </style>
@@ -94,7 +101,7 @@ details.card>summary::-webkit-details-marker{display:none}
 <div id="app">
   <aside>
     <h1>Straight Rows</h1>
-    <div id="tabs"><button id="tabInv" class="on">Investigate</button><button id="tabOps">Operator actions</button></div>
+    <div id="tabs"><button id="tabInv" class="on">Investigate</button><button id="tabOps">Operator actions</button><button id="tabSpec">Spectral</button></div>
     <div class="row" id="trs"></div>
     <div class="row" id="spans"></div>
     <details class="layers"><summary>Layers on the plots</summary><div class="row" id="opts"></div></details>
@@ -107,6 +114,7 @@ details.card>summary::-webkit-details-marker{display:none}
     <div id="plots"><canvas id="base"></canvas><canvas id="top"></canvas><div id="status">loading…</div></div>
   </main>
   <div id="ops"></div>
+  <div id="spec"></div>
   <section>
     <div class="row" id="mapbar"><button id="mapField" title="Zoom to the field">Field</button>
       <button id="mapAll" title="Zoom out to show the whole of every interference-report area and the estimated source">Whole report area</button>
@@ -509,9 +517,12 @@ function drawMap() {
 // ------------------------------------------------------------------ operator tab: per-machine actions traced back to events
 const OPS = {day: 2};                                // which 24 h block (0, 1 = labelled days, 2 = evaluation day)
 const CLSNAME = {SPACE_WEATHER: 'space weather', JAMMING: 'jamming', SPOOFING: 'spoofing', EQUIPMENT_FAULT: 'equipment fault', MULTIPATH: 'multipath'};
-function showTab(ops) {
-  document.body.classList.toggle('ops', ops); $('tabOps').classList.toggle('on', ops); $('tabInv').classList.toggle('on', !ops);
-  if (ops) renderOps(); else dirtyBase = true;
+function showTab(mode) {                              // 'inv' | 'ops' | 'spec' (true/false kept for the older callers: ops / investigate)
+  if (mode === true) mode = 'ops'; else if (mode === false) mode = 'inv';
+  const ops = mode === 'ops', spec = mode === 'spec';
+  document.body.classList.toggle('ops', ops); document.body.classList.toggle('spec', spec);
+  $('tabOps').classList.toggle('on', ops); $('tabSpec').classList.toggle('on', spec); $('tabInv').classList.toggle('on', mode === 'inv');
+  if (ops) renderOps(); else if (spec) renderSpec(); else dirtyBase = true;
 }
 function renderOps() {
   if (!M) return;
@@ -714,9 +725,173 @@ function bindInput() {
     $('mapIn').onclick = () => zoomMap(1.5); $('mapOut').onclick = () => zoomMap(1 / 1.5);
     $('mapField').classList.add('on');
   }
-  $('tabInv').onclick = () => showTab(false); $('tabOps').onclick = () => showTab(true);
+  $('tabInv').onclick = () => showTab('inv'); $('tabOps').onclick = () => showTab('ops'); $('tabSpec').onclick = () => showTab('spec');
   window.addEventListener('resize', () => { dirtyBase = true; });
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { dirtyBase = true; });
+}
+
+// ------------------------------------------------------------------ spectral tab: Welch PSD + spectrogram (computed in Python, drawn here)
+// Display only: nothing here feeds the detector. Frequencies are in mHz on screen; period (s) = 1000 / mHz.
+const SP = {data: null, ch: 'mincn0', scope: 0, tr: 0, vis: [true, true, true], harm: true, hp: null, hs: null, built: false, img: {}};
+const RAMP = ['#440154', '#414487', '#2a788e', '#22a884', '#7ad151', '#fde725'].map(h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)));
+const rampRGB = u => { u = Math.min(1, Math.max(0, u)) * (RAMP.length - 1); const i = Math.min(RAMP.length - 2, Math.floor(u)), f = u - i;
+  return RAMP[i].map((v, k) => Math.round(v + (RAMP[i + 1][k] - v) * f)); };
+const perStr = mhz => { const s = 1000 / mhz; return !isFinite(s) ? 'steady' : s >= 600 ? (s / 60).toFixed(1) + ' min' : s.toFixed(0) + ' s'; };
+async function renderSpec() {
+  const el = $('spec');
+  if (!SP.data) {
+    el.innerHTML = '<p class="ok">Computing the frequency views…</p>';
+    try { const r = await fetch('/spectral.json'); if (!r.ok) throw new Error('HTTP ' + r.status); SP.data = await r.json(); if (!SP.data.psd) throw new Error('empty'); }
+    catch (err) { el.innerHTML = `<p class="ok">The frequency data is not available (${err}). Restart the viewer from the current scripts/viewer.py.</p>`; return; }
+    SP.built = false;
+  }
+  if (!SP.built) buildSpec();
+  drawPsd(); drawSpec(); fillSpecTable();
+}
+function buildSpec() {
+  const D = SP.data, el = $('spec'), names = M.tractors;
+  el.innerHTML = `<div class="top"><h2>Repeating patterns: frequency view</h2></div>
+    <p class="lead">The Investigate tab shows each signal against time. These two plots show it against <b>how fast it repeats</b>. A sharp peak means something happens again and again at a steady interval. Multipath does this (a reflection dip each time a tractor passes the same headland spot), while a jammer, a storm or a fault is a one-off change and does not.</p>
+    <details class="trust"><summary>How to read these plots</summary><div>
+      <b>Power spectrum (PSD)</b> averages the whole period into one curve. Left to right is repeat rate: 5 mHz means 5 repeats per 1000 s, a period of 200 s. Height is how much of the signal's variation happens at that rate, in dB. A thin tall spike is a regular repeat. Smaller spikes at exactly 2×, 3×, 4× the rate belong to the same repeat (a short dip is not a smooth wave, so it leaves overtones). It cannot say <i>when</i>.<br><br>
+      <b>Spectrogram</b> is the same calculation in a sliding 34-minute window, so it adds time. A steady horizontal line is a repeat that lasts. Where the line fades the repeat stopped (for example when the machines park). A vertical stripe across all rates is a sudden change, such as a jam or storm onset. The coloured bar above it marks the events we reported for that tractor.<br><br>
+      Each window has its average removed first, so a slow level change does not hide the repeats. Windows with missing samples are skipped. The PSD uses only times the tractor is working. Timing detail is traded for rate detail: a repeat cannot be placed more precisely than the window length.</div></details>
+    <div class="ctl"><label>Signal <select id="spCh">${D.channels.map(([k, n]) => `<option value="${k}">${n}</option>`).join('')}</select></label>
+      <label>Spectrum period <select id="spScope">${D.psd.scopes.map((s, i) => `<option value="${i}">${s}</option>`).join('')}</select></label>
+      <span class="trs">${names.map((t, i) => `<label style="color:${TC[i]};font-weight:700"><input type="checkbox" data-sp="${i}" checked>${t}</label>`).join('')}</span>
+      <label><input type="checkbox" id="spHarm" checked>mark the repeat rate and its overtones</label></div>
+    <h3>Power spectrum</h3><div class="sum" id="spSum"></div>
+    <canvas id="psdCv" style="height:300px" title="Hover to read a value"></canvas>
+    <div id="spTable"></div>
+    <h3>Spectrogram</h3>
+    <div class="ctl"><span>Tractor</span>${names.map((t, i) => `<button data-sptr="${i}" class="${i === SP.tr ? 'on' : ''}" style="${i === SP.tr ? '' : 'color:' + TC[i]}">${t}</button>`).join('')}</div>
+    <canvas id="spgCv" style="height:360px" title="Hover to read a value"></canvas>
+    <div class="key" id="spKey"></div>`;
+  $('spCh').value = SP.ch; $('spScope').value = SP.scope;
+  const again = () => { drawPsd(); drawSpec(); fillSpecTable(); };
+  $('spCh').onchange = e => { SP.ch = e.target.value; again(); };
+  $('spScope').onchange = e => { SP.scope = +e.target.value; drawPsd(); fillSpecTable(); };
+  $('spec').querySelectorAll('input[data-sp]').forEach(n => n.onchange = () => { SP.vis[+n.dataset.sp] = n.checked; drawPsd(); fillSpecTable(); });
+  $('spHarm').onchange = e => { SP.harm = e.target.checked; drawPsd(); };
+  $('spec').querySelectorAll('button[data-sptr]').forEach(b => b.onclick = () => {
+    SP.tr = +b.dataset.sptr;
+    $('spec').querySelectorAll('button[data-sptr]').forEach((o, i) => { o.classList.toggle('on', i === SP.tr); o.style.color = i === SP.tr ? '' : TC[i]; });
+    drawSpec();
+  });
+  const rel = (e, cv) => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  const pc = $('psdCv'), sc = $('spgCv');
+  pc.onpointermove = e => { SP.hp = rel(e, pc); drawPsd(); }; pc.onpointerleave = () => { SP.hp = null; drawPsd(); };
+  sc.onpointermove = e => { SP.hs = rel(e, sc); drawSpec(); }; sc.onpointerleave = () => { SP.hs = null; drawSpec(); };
+  window.addEventListener('resize', () => { if (document.body.classList.contains('spec')) { drawPsd(); drawSpec(); } });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (document.body.classList.contains('spec')) { drawPsd(); drawSpec(); } });
+  SP.built = true;
+}
+function specRows() {                       // PSD rows for the chosen signal and period: [tractor index, record]
+  const P = SP.data.psd, sc = P.scopes[SP.scope];
+  return M.tractors.map((t, i) => [i, P.data[SP.ch][sc][t]]).filter(([, r]) => r);
+}
+function specFundamental(rows) {            // shared repeat rate (mHz): median over tractors that show one
+  const v = rows.map(([, r]) => r.peak && r.peak.hz * 1000).filter(Boolean).sort((a, b) => a - b);
+  return v.length ? v[Math.floor(v.length / 2)] : null;
+}
+function fillSpecTable() {
+  const rows = specRows(), vis = rows.filter(([i]) => SP.vis[i]), f0 = specFundamental(vis), P = SP.data.psd;
+  const agree = vis.filter(([, r]) => r.peak && Math.abs(r.peak.hz * 1000 / f0 - 1) < 0.04).length;
+  $('spSum').textContent = f0 && agree >= 1 && vis.length
+    ? `${agree} of ${vis.length} tractors show a repeat every about ${(1000 / f0).toFixed(0)} s (${(1000 / f0 / 60).toFixed(1)} min), found from the peak and its overtones.`
+    : 'No clear repeating pattern in this signal: the curve has no regular peaks, only a slow drift at the far left.';
+  $('spTable').innerHTML = `<table><tr><th>Tractor</th><th>Repeat period</th><th>Peak strength (dB above the curve's typical level)</th><th>Time analysed</th></tr>` +
+    rows.map(([i, r]) => `<tr><td style="color:${TC[i]};font-weight:700">${M.tractors[i]}</td><td>${r.peak ? r.peak.period_s.toFixed(0) + ' s' : 'none found'}</td>` +
+      `<td>${r.peak ? r.peak.strength_db.toFixed(0) + ' dB' : 'n/a'}</td><td>${(r.n * P.nper / 2 / 3600 + P.nper / 2 / 3600).toFixed(1)} h of working time</td></tr>`).join('') + '</table>';
+}
+function drawPsd() {
+  const cv = $('psdCv'); if (!cv || !SP.data || !cv.offsetWidth) return;
+  cssv = getComputedStyle(document.documentElement);
+  const {c, w, h} = fit(cv), D = SP.data, P = D.psd, rows = specRows().filter(([i]) => SP.vis[i]);
+  const ml = 56, mr = 14, mt = 12, mb = 46, fmax = D.fmax * 1000, df = P.df * 1000;
+  c.fillStyle = css('--plotbg'); c.fillRect(0, 0, w, h);
+  c.font = '11px system-ui'; c.textBaseline = 'middle';
+  if (!rows.length) { c.fillStyle = css('--muted'); c.textAlign = 'center'; c.fillText('No working time in this period', w / 2, h / 2); return; }
+  const k1 = Math.ceil(1 / df);                         // y range from rates above 1 mHz so slow drift does not flatten the peaks
+  let lo = Infinity, hi = -Infinity;
+  rows.forEach(([, r]) => { for (let k = k1; k < r.db.length; k++) { lo = Math.min(lo, r.db[k]); hi = Math.max(hi, r.db[k]); } });
+  lo = Math.floor((lo - 1) / 5) * 5; hi = Math.ceil((hi + 2) / 5) * 5;
+  const X = f => ml + f / fmax * (w - ml - mr), Y = v => mt + (1 - (v - lo) / (hi - lo)) * (h - mt - mb);
+  c.strokeStyle = css('--grid'); c.fillStyle = css('--muted'); c.lineWidth = 1; c.textAlign = 'right';
+  niceTicks(lo, hi, 5).forEach(v => { c.beginPath(); c.moveTo(ml, Y(v)); c.lineTo(w - mr, Y(v)); c.stroke(); c.fillText(v + ' dB', ml - 6, Y(v)); });
+  c.textAlign = 'center';
+  for (let f = 0; f <= fmax + 1e-9; f += 5) {
+    c.beginPath(); c.moveTo(X(f), mt); c.lineTo(X(f), h - mb); c.stroke();
+    const lx = Math.min(w - 22, X(f)); c.fillText(f + ' mHz', lx, h - mb + 12); if (f > 0) c.fillText(perStr(f), lx, h - mb + 25);
+  }
+  c.fillStyle = css('--muted'); c.fillText('repeat rate (top) and the time between repeats (below)', (ml + w - mr) / 2, h - 6);
+  const f0 = specFundamental(rows);
+  if (SP.harm && f0) {
+    c.save(); c.setLineDash([4, 4]); c.strokeStyle = css('--axis'); c.fillStyle = css('--text'); c.textAlign = 'center';
+    for (let k = 1; k * f0 <= fmax && k <= 8; k++) { const x = X(k * f0); c.beginPath(); c.moveTo(x, mt + 10); c.lineTo(x, h - mb); c.stroke(); c.fillText(k === 1 ? `${perStr(f0)} repeat` : '×' + k, x, mt + 4); }
+    c.restore();
+  }
+  c.save(); c.beginPath(); c.rect(ml, mt, w - ml - mr, h - mt - mb); c.clip(); c.lineWidth = 1.6; c.lineJoin = 'round';
+  rows.forEach(([i, r]) => { c.strokeStyle = TC[i]; c.beginPath(); r.db.forEach((v, k) => { const x = X(k * df), y = Y(Math.max(v, lo)); k ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); });
+  c.restore();
+  c.strokeStyle = css('--axis'); c.strokeRect(ml, mt, w - ml - mr, h - mt - mb);
+  if (SP.hp && SP.hp[0] >= ml && SP.hp[0] <= w - mr) {
+    const f = (SP.hp[0] - ml) / (w - ml - mr) * fmax, k = Math.round(f / df);
+    c.strokeStyle = css('--text'); c.lineWidth = 1; c.beginPath(); c.moveTo(SP.hp[0], mt); c.lineTo(SP.hp[0], h - mb); c.stroke();
+    const lines = [`${(k * df).toFixed(2)} mHz  ·  every ${perStr(k * df)}`, ...rows.map(([i, r]) => `${M.tractors[i]}  ${r.db[k].toFixed(1)} dB`)];
+    const bw = 170, bh = 8 + lines.length * 15, bx = SP.hp[0] + 12 + bw > w ? SP.hp[0] - 12 - bw : SP.hp[0] + 12;
+    c.fillStyle = css('--tipbg'); c.strokeStyle = css('--border'); c.fillRect(bx, mt + 6, bw, bh); c.strokeRect(bx, mt + 6, bw, bh);
+    c.textAlign = 'left'; lines.forEach((t, j) => { c.fillStyle = j ? TC[rows[j - 1][0]] : css('--text'); c.fillText(t, bx + 6, mt + 17 + j * 15); });
+  }
+}
+function specImage(ch, tr) {
+  const key = ch + tr; if (SP.img[key]) return SP.img[key];
+  const S = SP.data.spec, cols = S.data[ch][M.tractors[tr]], nt = cols.length, nf = S.nf, k1 = Math.ceil(0.001 / S.df), vals = [];
+  cols.forEach(col => { if (col) for (let k = k1; k < nf; k++) vals.push(col[k]); });
+  vals.sort((a, b) => a - b);
+  const lo = vals.length ? vals[Math.floor(vals.length * 0.03)] : 0, hi = vals.length ? vals[Math.floor(vals.length * 0.995)] : 1;
+  const cv = document.createElement('canvas'); cv.width = nt; cv.height = nf;
+  const g = cv.getContext('2d'), im = g.createImageData(nt, nf);
+  cols.forEach((col, x) => { if (!col) return;
+    for (let k = 0; k < nf; k++) { const [r, gg, b] = rampRGB((col[k] - lo) / (hi - lo)), o = ((nf - 1 - k) * nt + x) * 4; im.data[o] = r; im.data[o + 1] = gg; im.data[o + 2] = b; im.data[o + 3] = 255; } });
+  g.putImageData(im, 0, 0);
+  return SP.img[key] = {cv, lo, hi};
+}
+function drawSpec() {
+  const cv = $('spgCv'); if (!cv || !SP.data || !cv.offsetWidth) return;
+  cssv = getComputedStyle(document.documentElement);
+  const {c, w, h} = fit(cv), D = SP.data, S = D.spec, tn = M.tractors[SP.tr], img = specImage(SP.ch, SP.tr);
+  const ml = 86, mr = 74, mt = 34, mb = 26, fmax = D.fmax * 1000, pw = w - ml - mr, ph = h - mt - mb;
+  const X = t => ml + t / TOTAL * pw, Y = f => mt + (1 - f / fmax) * ph;
+  c.fillStyle = css('--plotbg'); c.fillRect(0, 0, w, h); c.font = '11px system-ui'; c.textBaseline = 'middle';
+  c.fillStyle = css('--bg'); c.fillRect(ml, mt, pw, ph);                              // skipped windows (gaps) show as background
+  c.imageSmoothingEnabled = false;
+  c.drawImage(img.cv, X(S.t[0] - S.hop / 2), mt, X(S.t[S.t.length - 1] + S.hop / 2) - X(S.t[0] - S.hop / 2), ph);
+  c.strokeStyle = css('--axis'); c.strokeRect(ml, mt, pw, ph);
+  c.fillStyle = css('--muted'); c.textAlign = 'right';
+  for (let f = 0; f <= fmax + 1e-9; f += 10) { c.fillText(`${f} mHz` + (f ? ` · ${perStr(f)}` : ''), ml - 6, Y(f)); c.beginPath(); c.moveTo(ml - 3, Y(f)); c.lineTo(ml, Y(f)); c.stroke(); }
+  c.textAlign = 'center'; const step = w < 700 ? 43200 : 21600;
+  for (let t = 0; t <= TOTAL; t += step) { c.beginPath(); c.moveTo(X(t), h - mb); c.lineTo(X(t), h - mb + 3); c.stroke(); c.fillText(fmtT(t).slice(0, 11), Math.min(w - 30, Math.max(30, X(t))), h - 10); }
+  // events we reported for this tractor (not the per-pass multipath ticks): where in time a one-off change sits against the stripes
+  M.events.forEach(e => { if (e.kind !== 'DET' || e.cls === 'MULTIPATH' || !e.tr.includes(tn)) return;
+    c.fillStyle = CLS[e.cls][0]; c.fillRect(X(e.s), mt - 24, Math.max(2, X(e.e) - X(e.s)), 10); });
+  c.fillStyle = css('--muted'); c.textAlign = 'right'; c.fillText('reported', ml - 6, mt - 19);
+  const bx = w - mr + 14, bw = 12;                                                    // colour bar
+  for (let y = 0; y < ph; y++) { const [r, g, b] = rampRGB(1 - y / ph); c.fillStyle = `rgb(${r},${g},${b})`; c.fillRect(bx, mt + y, bw, 1.5); }
+  c.fillStyle = css('--muted'); c.textAlign = 'left';
+  c.fillText(img.hi.toFixed(0) + ' dB', bx + bw + 4, mt + 5); c.fillText(img.lo.toFixed(0) + ' dB', bx + bw + 4, mt + ph - 5); c.fillText('power', bx - 2, mt - 19);
+  $('spKey').innerHTML = ['SPACE_WEATHER', 'JAMMING', 'SPOOFING', 'EQUIPMENT_FAULT'].map(k => `<span><i style="background:${CLS[k][0]}"></i>${CLSNAME[k]}</span>`).join('') +
+    `<span>Bar above the plot = events reported for ${tn}. Bright steady line = a repeat that lasts. Dark noise = parked or quiet. Blank = missing data.</span>`;
+  if (SP.hs && SP.hs[0] >= ml && SP.hs[0] <= w - mr && SP.hs[1] >= mt && SP.hs[1] <= h - mb) {
+    const t = (SP.hs[0] - ml) / pw * TOTAL, f = (1 - (SP.hs[1] - mt) / ph) * fmax, i = Math.round((t - S.t[0]) / S.hop);
+    const col = S.data[SP.ch][tn][Math.min(S.t.length - 1, Math.max(0, i))], k = Math.min(S.nf - 1, Math.round(f / (S.df * 1000)));
+    const hits = M.events.filter(e => e.kind === 'DET' && e.cls !== 'MULTIPATH' && e.tr.includes(tn) && e.s <= t && e.e >= t).map(e => `${e.id} ${CLSNAME[e.cls]}`);
+    const lines = [fmtT(t), `${f.toFixed(1)} mHz  ·  every ${perStr(f)}`, col ? `${col[k].toFixed(1)} dB` : 'no data in this window', ...hits];
+    c.strokeStyle = css('--text'); c.lineWidth = 1; c.beginPath(); c.moveTo(SP.hs[0], mt); c.lineTo(SP.hs[0], h - mb); c.moveTo(ml, SP.hs[1]); c.lineTo(w - mr, SP.hs[1]); c.stroke();
+    const bw = 190, bh = 8 + lines.length * 15, bx2 = SP.hs[0] + 12 + bw > w - mr ? SP.hs[0] - 12 - bw : SP.hs[0] + 12, by = Math.min(SP.hs[1] + 8, h - mb - bh);
+    c.fillStyle = css('--tipbg'); c.strokeStyle = css('--border'); c.fillRect(bx2, by, bw, bh); c.strokeRect(bx2, by, bw, bh);
+    c.fillStyle = css('--text'); c.textAlign = 'left'; lines.forEach((tx, j) => c.fillText(tx, bx2 + 6, by + 12 + j * 15));
+  }
 }
 
 // ------------------------------------------------------------------ UI build + loading
@@ -758,6 +933,7 @@ async function init() {
   requestAnimationFrame(frame);
   await loadLevel(60); await loadLevel(10);
   if (h.get('tab') === 'ops') { if (h.has('day')) OPS.day = +h.get('day'); OPS.open = h.has('open'); showTab(true); }
+  if (h.get('tab') === 'spec') { if (h.has('ch')) SP.ch = h.get('ch'); if (h.has('scope')) SP.scope = +h.get('scope'); if (h.has('tr')) SP.tr = +h.get('tr'); showTab('spec'); }
   if (h.get('map') === 'all') $('mapAll').click();
   if (h.has('ev') && +h.get('ev') >= 0) select(+h.get('ev'), !h.has('t0'));
   $('status').textContent = 'loading 1 s data…';

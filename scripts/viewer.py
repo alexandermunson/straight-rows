@@ -26,6 +26,7 @@ import numpy as np
 import pandas as pd
 
 from gui_matplotlib import FIX_RANK, TRACTORS, Data  # data + detector loading is shared with the snapshot tool
+import viewer_spectral                              # PSD + spectrogram for the Spectral tab (display only)
 
 CHANNELS = ["cn0", "mincn0", "xte", "sats", "fix", "link", "lat", "lon", "spd"]   # order is a contract with index.html
 LAT0, LON0 = 46.9, -97.2
@@ -109,7 +110,7 @@ def naive_ts(x):
     return naive(x)
 
 
-def make_handler(meta_bytes, levels):
+def make_handler(meta_bytes, levels, spectral_bytes=b"{}"):
     html = (STATIC / "index.html").read_bytes
 
     class H(BaseHTTPRequestHandler):
@@ -133,6 +134,8 @@ def make_handler(meta_bytes, levels):
                 self._send(200, "text/html; charset=utf-8", html())
             elif path == "/meta.json":
                 self._send(200, "application/json", meta_bytes)
+            elif path == "/spectral.json":
+                self._send(200, "application/json", spectral_bytes)
             elif path.startswith("/lvl/") and path.endswith(".bin"):
                 try:
                     self._send(200, "application/octet-stream", levels[int(path[5:-4])])
@@ -173,8 +176,10 @@ def main():
     print("building multi-resolution levels...", flush=True)
     levels = build_levels(d)
     meta = json.dumps(build_meta(d), allow_nan=False).encode()
+    spectral = json.dumps(viewer_spectral.compute({tr: d.frames[1][tr] for tr in TRACTORS}, TRACTORS, d.t_min,
+                                                  int((d.t_max - d.t_min).total_seconds())), allow_nan=False).encode()
     print(f"ready: {len(meta) / 1e6:.1f} MB meta, levels " + ", ".join(f"{r}s={len(b) / 1e6:.1f} MB" for r, b in levels.items()), flush=True)
-    srv = ThreadingHTTPServer(("127.0.0.1", a.port), make_handler(meta, levels))
+    srv = ThreadingHTTPServer(("127.0.0.1", a.port), make_handler(meta, levels, spectral))
     url = f"http://127.0.0.1:{a.port}/"
     print(f"serving {url}   (Ctrl+C to stop)", flush=True)
     if not a.no_open:
