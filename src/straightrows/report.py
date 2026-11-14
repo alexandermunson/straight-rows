@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import numpy as np
@@ -258,7 +259,9 @@ def evidence(c, p: Params, conf_terms):
     return ev
 
 
-def to_submission(cands, p, handle, repo_url, display_name=None):
+def to_submission(cands, p, handle, repo_url, display_name=None, plain=False):
+    """plain=True adds a `reasoning` field (plain-language sections) per detection for the viewer. The submission
+    writer never sets it, so submission.json is unaffected."""
     dets = []
     for c in cands:
         conf, terms = confidence(c, p)
@@ -267,6 +270,8 @@ def to_submission(cands, p, handle, repo_url, display_name=None):
             "tractors": sorted(c["tractors"]), "class": c["cls"], "action": ACTION[c["cls"]],
             "confidence": conf, "evidence": evidence(c, p, terms),
         })
+        if plain:
+            dets[-1]["reasoning"] = explain(c, p, conf, terms)
     if len(dets) > p.max_detections:     # validator limit; thin the recurring multipath reports evenly, never real episodes
         mp = [d for d in dets if d["class"] == "MULTIPATH"]
         other = [d for d in dets if d["class"] != "MULTIPATH"]
@@ -279,3 +284,254 @@ def to_submission(cands, p, handle, repo_url, display_name=None):
     if display_name:
         part["display_name"] = display_name
     return {"participant": part, "repository_url": repo_url, "detections": dets}
+
+
+# ---------------------------------------------------------------- plain-language reasoning (viewer only)
+PLAIN_CLASS = {"SPACE_WEATHER": "a space-weather (ionospheric) disturbance", "JAMMING": "radio jamming",
+               "SPOOFING": "GNSS spoofing", "EQUIPMENT_FAULT": "a fault on the machine itself",
+               "MULTIPATH": "a harmless signal reflection (multipath)"}
+PLAIN_ACTION = {
+    "HALT_OR_DEGRADED_MODE": "Stop precision work or switch to a degraded mode until the disturbance passes. Nobody needs to be notified: the cause is natural.",
+    "HALT_AND_REPORT": "Stop the affected machines and report the interference. Treat every listed machine's position as unreliable until the signal returns.",
+    "HALT_CROSSCHECK_AND_REPORT": "Stop the machine, check its position against something independent of GNSS (inertial sensors, wheel odometry, a visual check of the rows), and report it.",
+    "SERVICE_MACHINE_OTHERS_CONTINUE": "Take this one machine out for service. The others are unaffected and can keep working.",
+    "CONTINUE_FALSE_ALARM": "Keep working. This is a false alarm as far as guidance is concerned.",
+}
+
+
+def _machines(trs):
+    trs = list(trs)
+    return trs[0] if len(trs) == 1 else ", ".join(trs[:-1]) + " and " + trs[-1]
+
+
+_TERM_PLAIN = [
+    (r"^S4 elevated: scintillation is an alternative$", "the ionosphere was disturbed, so a storm could explain part of it"),
+    (r"^S4 elevated$", "the ionosphere was measurably disturbed"),
+    (r"^S4 not elevated$", "the ionosphere was not measurably disturbed"),
+    (r"^S4 unavailable.*$", "no scintillation reading was available"),
+    (r"^S4 quiet$", "the ionosphere was calm"),
+    (r"^Kp >= (\d+)$", r"geomagnetic activity was at storm level (Kp \1 or more)"),
+    (r"^all machines affected$", "every machine was affected"),
+    (r"^RFI report corroborates$", "an interference report matches in time and place"),
+    (r"^low-confidence RFI report$", "a low-confidence interference report matches"),
+    (r"^no RFI report.*$", "no interference report was filed (they are sometimes missing)"),
+    (r"^deep C/N0 loss on the worst machine$", "the worst-hit machine lost more than 8 dB of signal"),
+    (r"^loss differs between machines \(([\d.]+) dB\).*$", r"the machines were hit unequally (\1 dB apart), unlike a storm"),
+    (r"^signal health intact$", "the signal stayed healthy while the position drifted"),
+    (r"^large XTE$", "the machine went more than 2 m off its line"),
+    (r"^XTE drift slope CI excludes zero$", "the drift was steady rather than random"),
+    (r"^storm active: XTE could be ionospheric$", "a storm was active or recent, which can also disturb position"),
+    (r"^several machines at once.*$", "several machines drifted together, leaving no healthy neighbour to compare with"),
+    (r"^explicit link-down flag$", "the machine itself reported its correction link down"),
+    (r"^neighbors healthy$", "the neighbouring machines were healthy"),
+    (r"^recurs (\d+)x at one spot$", r"the same dip recurs \1 times at one spot"),
+    (r"^lasted >= 10 min$", "it lasted at least 10 minutes"),
+    (r"^short event$", "it lasted under 5 minutes"),
+    (r"^overlaps another cause$", "it overlaps another cause"),
+]
+
+
+def _term(n):
+    for pat, rep in _TERM_PLAIN:
+        if re.match(pat, n):
+            return re.sub(pat, rep, n)
+    return n
+
+
+def _confidence_plain(conf, terms):
+    terms = [terms[0]] + [(_term(n), d) for n, d in terms[1:]]
+    word = "high" if conf >= 0.85 else "fairly high" if conf >= 0.7 else "moderate" if conf >= 0.5 else "low"
+    base = terms[0][1]
+    up = [f"{n} (+{d:.2f})" for n, d in terms[1:] if d > 0]
+    down = [f"{n} ({d:.2f})" for n, d in terms[1:] if d < 0]
+    txt = f"Confidence is {conf:.2f} ({word}). It starts from {base:.2f} for this kind of cause"
+    txt += (", goes up for: " + "; ".join(up)) if up else ""
+    txt += (", and comes down for: " + "; ".join(down)) if down else ""
+    return txt + ". The score is a transparent tally of these points, capped at 0.90; it is not a measured probability."
+
+
+def _sda_plain(c, p):
+    """Space-side picture in sentences: scintillation, geomagnetic activity, advisories, interference reports."""
+    s4, out = c["s4"], []
+    if s4["elevated"] is None:
+        out.append("No scintillation (S4) reading is available for this period, so it counts neither for nor against a storm.")
+    else:
+        out.append(f"The ionospheric scintillation index S4 averaged {s4['mean']:.2f} during the event "
+                   + (f"(it peaked at {s4['max']:.2f} within {p.s4_lag_min} minutes either side). " if np.isfinite(s4["max"]) else ". ")
+                   + (f"That is well above the usual quiet level of {s4['base']:.2f} and above the {p.s4_high:.2f} level we treat as disturbed."
+                      if s4["elevated"] else f"That is about the usual quiet level ({s4['base']:.2f}), so the ionosphere was calm."))
+    if np.isfinite(c["kp_max"]):
+        when = f" (the 3-hour reading starting {fmt(c['kp_ts'])})" if c["kp_ts"] is not None else ""
+        out.append(f"Geomagnetic activity (Kp) reached {c['kp_max']:.1f} in the {p.kp_lead_h:g} hours before and during the event{when}; "
+                   + (f"{p.kp_high:g} or more means a geomagnetic storm." if c["kp_max"] >= p.kp_high else f"storm level starts at {p.kp_high:g}, so this is quiet.")
+                   + (f" The storm-time index Dst was as low as {c['dst_min']:.0f} nT in the preceding {p.dst_lead_h:g} hours"
+                      + (", which shows a storm earlier in the day that is still recovering." if c["dst_min"] <= p.dst_low and c["kp_max"] < p.kp_high
+                         else "." ) if np.isfinite(c["dst_min"]) else ""))
+    for a_ in c["advisories"]:
+        out.append(f"Advisory {a_.get('id', '')} was in force (issued {fmt(a_['_ts'])}, {a_['_age_h']:.0f} hours before this event, valid for "
+                   f"{a_['_valid_h']:.0f} hours): \"{str(a_.get('text') or a_.get('type'))}\"")
+    if c["rfi"]:
+        for r in c["rfi"]:
+            out.append(f"An interference report ({r.get('id', 'unnamed')}) was filed at {fmt(r['_ts'])}, {r['_delay_min']:.0f} minutes after this event began"
+                       + (f", locating a source about {r['_dist_km']:.1f} km from the machines" if "_dist_km" in r else "")
+                       + (", which is inside the report's own location uncertainty." if r["_within"] else ", which is too far away to be the same thing.")
+                       + (" The report itself is marked low-confidence, so it counts half." if r["_weight"] < 1 else ""))
+    else:
+        out.append("No interference report was filed for this period. Reports normally arrive 10 to 30 minutes late and are sometimes "
+                   "never filed, so their absence proves little.")
+    return " ".join(out)
+
+
+def _machine_plain(t, s):
+    loss = -s["cn0_dev_mean"]
+    sig = (f"signal strength averaged {s['cn0_mean']:.1f} dB-Hz, {loss:.1f} dB below its normal {s['cn0_base']:.1f}" if loss >= 1
+           else f"signal strength stayed normal ({s['cn0_mean']:.1f} dB-Hz against its usual {s['cn0_base']:.1f})")
+    fix = (f"it had lost its full-precision (RTK) fix {100 * s['fixbad_frac']:.0f}% of the time" if s["fixbad_frac"] >= 0.005
+           else "it kept its full-precision (RTK) fix throughout")
+    link = "" if s["link_frac"] > 0.995 else f"; its correction link from the base station was down {100 * (1 - s['link_frac']):.0f}% of the time"
+    return (f"{t}: {sig}; its weakest satellite dropped to {s['mincn0_min']:.1f} dB-Hz (normally about {s['mincn0_base']:.1f}); "
+            f"it tracked as few as {s['sats_min']:.0f} satellites (normally {s['sats_base']:.0f}); {fix}; "
+            f"it was off its line by {s['xte_mean']:.2f} m on average and {s['xte_max']:.2f} m at worst{link}.")
+
+
+def explain(c, p: Params, conf, terms):
+    """The same reasoning as `evidence`, written to be read: [(heading, paragraph), ...]. Nothing is left out; technical
+    terms are named once in brackets so each sentence can be checked against the plots."""
+    cls, tr = c["cls"], c["tractors"]
+    a, b = c["start"], c["end"]
+    mins = (b - a).total_seconds() / 60
+    others = [o for o in c.get("concurrent", []) if o["cls"] != cls]
+    overlap = ("At the same time we also report " + "; ".join(
+        f"{PLAIN_CLASS[o['cls']]} on {_machines(o['tractors'])} ({fmts(o['start'])} to {fmts(o['end'])})" for o in others)
+        + ". These are separate causes with their own actions, and the overlap is one reason the confidence here is lower.") if others else ""
+    out = []
+    if cls == "MULTIPATH":
+        m, t = c["mp"], tr[0]
+        per = f"about every {m['period_s'] / 60:.1f} minutes" if np.isfinite(m["period_s"]) else "on every pass"
+        deep = m['base_min_cn0'] - m['min_cn0'] > p.mp_dip_max_db
+        out.append(("What happened", f"For {(b - a).total_seconds():.0f} seconds ({fmts(a)} to {fmts(b)}) the weakest satellite signal on {t} dipped to "
+                    f"{m['min_cn0']:.1f} dB-Hz. Around that time it was typically {m['base_min_cn0']:.1f}, so the dip was "
+                    f"{m['base_min_cn0'] - m['min_cn0']:.1f} dB at its lowest and {-m['depth']:.1f} dB for most of it. "
+                    + (f"The single lowest reading is deeper than a reflection produces (more than {p.mp_dip_max_db:.0f} dB) and belongs to the other event "
+                       "running at the same time; the reflection is the steadier part of the dip. " if deep else "")
+                    + (f"During the dip {t} tracked {m['sats_min']:.0f} satellites (typically {m['sats_base']:.0f} around then) and was at most {m['xte_max']:.2f} m off its line."
+                       if others else f"Nothing else moved: {t} kept {m['sats_min']:.0f} of its usual {m['sats_base']:.0f} satellites and was never more than {m['xte_max']:.2f} m off its line.")))
+        out.append(("Why we think it is a reflection", f"The dip happens at one fixed place, the headland at "
+                    f"{abs(m['spot'][0]):.5f}{'N' if m['spot'][0] >= 0 else 'S'} {abs(m['spot'][1]):.4f}{'E' if m['spot'][1] >= 0 else 'W'}, inside a strip only "
+                    f"{p.mp_band_m:.0f} m wide. We found the same dip {m['n_total']} times over the three days"
+                    + (f" ({m['n_window']} of them in the period shown)" if m['n_window'] != m['n_total'] else "") + f", {per} as "
+                    f"{t} comes back to that spot. "
+                    + (f"{_machines(m['peers'])} showed the same dip within 45 seconds on this pass, so it belongs to the place, not to one machine. "
+                       if m["peers"] else "No other machine was at the spot on this pass. ")
+                    + "A brief dip on one satellite's signal that repeats at the same location is what a signal bouncing off a nearby obstruction looks like."))
+        out.append(("What else it could be", (overlap + " The dip is measured against the machine's own level at that moment, so it is counted as a "
+                    "separate, harmless effect on top of the other event.") if overlap else f"Jamming or space weather would lower the average signal on all satellites and last minutes, not seconds; "
+                    f"the average did not move. An antenna fault would cost satellites and produce dips deeper than {p.mp_dip_max_db:.0f} dB; the satellite "
+                    "count held. Spoofing would pull the machine off its line; it stayed on."))
+    else:
+        st, nb = c["stats"], c["neighbors"]
+        happened = f"Between {fmts(a)} and {fmts(b)} ({mins:.0f} minutes) something affected {_machines(tr)}.\n" + "\n".join(_machine_plain(t, st[t]) for t in tr)
+        if nb:
+            happened += "\nMeanwhile the other machines: " + "; ".join(
+                f"{n} had {('normal signal' if abs(s['cn0_dev_mean']) < 1 else f'signal {-s_dev:.1f} dB down') if (s_dev := s['cn0_dev_mean']) is not None else ''}, "
+                f"was at most {s['xte_max']:.2f} m off line and had its correction link up {100 * s['link_frac']:.0f}% of the time" for n, s in nb.items()) + "."
+        out.append(("What happened", happened))
+        stat = c.get("stat") or {}
+        pairs = [(k, v) for k, v in (stat.get("pair") or {}).items() if np.isfinite(v["r"])]
+        together = ""
+        if pairs:
+            sig = [f"{x} and {y} ({v['r']:+.2f})" for (x, y), v in pairs if v["significant"]]
+            not_ = [f"{x} and {y} ({v['r']:+.2f})" for (x, y), v in pairs if not v["significant"]]
+            together = ("Minute by minute, signal strength moved together on " + ", ".join(sig) + ". " if sig else "") + \
+                       ("It did not move together on " + ", ".join(not_) + ". " if not_ else "") + \
+                       "(The figure in brackets is the correlation: +1 means perfectly in step, 0 means unrelated.) "
+        if cls == "SPACE_WEATHER":
+            sp = c.get("spread_db")
+            why = ("Every working machine lost signal at the same moment and by the same amount"
+                   + ((f" (the loss differs by only {sp:.1f} dB between machines)" if sp >= 0.05 else " (the loss differs by less than 0.1 dB between machines)") if sp is not None else "")
+                   + ". A disturbance in the ionosphere is far above the field, so it treats every receiver alike; a transmitter on the ground "
+                   "would hit the nearest machine hardest. " + together)
+            lg = stat.get("lag")
+            if lg:
+                why += (f" Over the three hours either side, the fleet's signal loss tracks the scintillation index closely (correlation {abs(lg['r']):.2f}, "
+                        f"best match {('with no delay' if lg['lag_min'] == 0 else "at a delay of %+d minutes" % lg["lag_min"])}): each 0.1 rise in S4 goes with about {abs(lg['slope']) / 10:.1f} dB of loss. "
+                        + ("That link is too strong to be chance, even allowing for the 13 delays we tried."
+                           if lg["significant"] else "That link is not strong enough to rule out chance."))
+            lead = (a - c["kp_ts"]).total_seconds() / 60 if c["kp_ts"] is not None else -1
+            if lead > 0 and c["kp_max"] >= p.kp_high:
+                why += f" The geomagnetic reading turned stormy {lead:.0f} minutes before the machines felt it, which is the order you expect from a storm."
+            out.append(("Why we think it is space weather", why))
+            out.append(("What else it could be", "A single-machine fault is ruled out because every machine was affected identically. A distant jammer could "
+                        "in principle look this uniform, but nothing points to one. If a jammer switches on during the storm it shows up as a sudden "
+                        "extra drop on top of the storm level, and we report that separately. " + overlap))
+        elif cls == "JAMMING":
+            sp, s4 = c.get("spread_db"), c["s4"]
+            forced = any("jammer on top of a storm" in n for n in c.get("notes", []))
+            why = (f"Signal strength fell abruptly on {_machines(tr)} at {fmts(a)} and recovered just as abruptly at {fmts(b)}, with satellites and the "
+                   "full-precision fix lost while it lasted. A sudden, strong loss across all satellites is what a transmitter drowning out the GNSS band looks like. ")
+            if forced:
+                why += ("This happened in the middle of a space-weather disturbance that was already lowering the signal: the level stepped down "
+                        f"sharply by at least {p.jam_step_db:.0f} dB beyond the storm level and later stepped back up. A storm changes gradually; a step like that means something was switched on. ")
+            if sp is not None:
+                why += (f"The machines were not hit equally: the loss differs by {sp:.1f} dB between them. A disturbance in the sky affects every machine alike "
+                        "(the two storms in the labeled data differ by 0.1 dB or less), so unequal loss points to a source on the ground that is closer to some machines than others. "
+                        if sp >= p.uniform_spread_db else
+                        f"The machines were hit almost equally (within {sp:.1f} dB), which by itself does not separate a distant jammer from a storm. ")
+            why += together
+            out.append(("Why we think it is jamming", why))
+            alt = ("Space weather is the main alternative. " + ("The ionosphere was calm at the time, which argues against it. " if s4["elevated"] is False
+                   else "The ionosphere was disturbed at the time, so part of the loss is the storm; the abrupt extra step is what we attribute to jamming, and that is why confidence is low. " if s4["elevated"]
+                   else "We have no scintillation reading, so we cannot use it either way. ")
+                   + "A fault on one machine cannot explain several machines losing signal at the same second. The machines also drifted off their lines "
+                   "during this event, but that is what happens when the signal is drowned out, so we do not call it spoofing. ")
+            if not any(r["_within"] for r in c["rfi"]):
+                alt += "No interference report backs this up, so the call rests on the machines' own data. "
+            out.append(("What else it could be", alt + overlap))
+        elif cls == "SPOOFING":
+            t0 = st[tr[0]]
+            dr = (stat.get("drift") or {}).get(tr[0])
+            why = (f"{_machines(tr)} drifted steadily off the planned line, reaching {max(st[t]['xte_max'] for t in tr):.2f} m, while its receiver reported "
+                   f"nothing wrong: signal strength within {abs(t0['cn0_dev_mean']):.1f} dB of normal and at least {t0['sats_min']:.0f} satellites in view. ")
+            if dr and np.isfinite(dr["slope"]):
+                why += (f"The error grew at about {dr['slope']:.2f} m per minute (give or take {dr['slope_half']:.3f}), "
+                        + ("a smooth, steady pull rather than random wander. " if dr["slope_signif"] and dr["slope"] > 0 else "though not steadily enough to be sure it is a drift. "))
+            why += ("Jamming and storms degrade the signal before they degrade the position. A position that walks away while the signal looks healthy is the "
+                    "signature of a counterfeit signal steering the receiver. The cross-track error comes from a separate guidance monitor; we do not trust "
+                    "the receiver's own reported position here. ")
+            if c.get("channel") == "XC":
+                why += (f"{len(tr)} machines were pulled at once, so there was no unaffected neighbour to compare against; that is why confidence is reduced. ")
+            elif nb:
+                why += "The neighbouring machines stayed on their lines (" + ", ".join(f"{n} at most {s['xte_max']:.2f} m" for n, s in nb.items()) + "), so the field and the task were not the cause. "
+            out.append(("Why we think it is spoofing", why))
+            out.append(("What else it could be", ("A storm was active or recent, and a disturbed ionosphere can also degrade position, which is why confidence is reduced; "
+                        "but a storm would lower this machine's signal and affect its neighbours too. " if c["s4"]["elevated"] or c["kp_max"] >= p.kp_high
+                        else "Space weather was quiet. ") + "Jamming would show as lost signal, and an antenna or link fault would show as lost satellites or a dropped "
+                        "correction link; none of those happened. " + overlap))
+        else:
+            t0 = st[tr[0]]
+            if c.get("mode") == "link":
+                why = (f"{tr[0]}'s correction link from the base station was reported down for {100 * (1 - t0['link_frac']):.0f}% of the window, dropping in and out, and "
+                       f"it lost its full-precision fix {100 * t0['fixbad_frac']:.0f}% of the time as a result. Its satellite signals were normal throughout, so "
+                       "nothing was wrong with reception. ")
+            else:
+                why = (f"{tr[0]} kept losing individual satellites: its weakest signal fell far below normal in {100 * t0['mincn0_dip_frac']:.0f}% of the 10-second "
+                       f"intervals" + (f" and its satellite count dropped in {100 * t0['sats_dropout_frac']:.0f}% of them" if t0['sats_dropout_frac'] >= 0.005 else "") + ", while its average signal strength moved only "
+                       f"{abs(t0['cn0_dev_mean']):.1f} dB. Intermittent dropouts with a healthy average are typical of an antenna or cable problem. ")
+            if nb:
+                why += ("The other machines, working the same field under the same sky, were fine (" + "; ".join(
+                    f"{n} signal {('normal' if abs(s['cn0_dev_mean']) < 1 else f'{-s['cn0_dev_mean']:.1f} dB down')}, link up {100 * s['link_frac']:.0f}%" for n, s in nb.items())
+                    + "). Anything in the sky or on the air would have reached them too. ")
+            fl = (stat.get("fleet") or {}).get(tr[0])
+            if fl and np.isfinite(fl.get("r2", np.nan)):
+                why += (f"Its signal went up and down independently of the rest of the fleet (only {100 * fl['r2']:.0f}% of the variation is shared), which again points at the machine. "
+                        if fl["r2"] < 0.3 else f"Its signal does follow the fleet's to some degree ({100 * fl['r2']:.0f}% shared), so a common cause cannot be fully excluded. ")
+            out.append(("Why we think it is an equipment fault", why))
+            out.append(("What else it could be", "Jamming and space weather are ruled out because they would affect the neighbours. Spoofing is ruled out because the machine "
+                        f"stayed on its line (at most {t0['xte_max']:.2f} m off). "
+                        + ("An interference report is listed above for completeness, but its timing fits a different event and this call does not rely on it. " if c["rfi"] else "")
+                        + overlap))
+    if cls != "MULTIPATH":
+        out.insert(2, ("What the space-weather and interference feeds say", _sda_plain(c, p)))
+    out.append(("What to do", f"{PLAIN_ACTION[ACTION[cls]]} (Action code: {ACTION[cls]}.)"))
+    out.append(("How sure we are", _confidence_plain(conf, terms)))
+    return [(h, "\n".join(" ".join(line.split()) for line in t.split("\n") if line.strip())) for h, t in out]

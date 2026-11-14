@@ -76,7 +76,7 @@ class Data:
         # GUI-only naive-UTC copies; self.b must stay untouched because the detector compares against tz-aware times
         self.kp, self.s4 = (self._naive_ts(self.b.kp), self._naive_ts(self.b.s4))
         self.truth = [dict(kind="TRUTH", id=e["id"], cls=e["class"], tractors=e["tractors"], start=naive(e["start"]),
-                           end=naive(e["end"]), conf=None, evidence=[], action=e.get("recommended_action", ""))
+                           end=naive(e["end"]), conf=None, evidence=[], action=e.get("recommended_action", ""), reasoning=[])
                       for e in self.b.train]
         self.dets, self.mp, self.mp_lat = [], [], None
         if submission:
@@ -127,7 +127,7 @@ class Data:
         p.max_detections = 10 ** 9
         det = Detector(self.b, p, (self.b_epoch(), self.t_max.tz_localize("UTC")))
         cands = det.run()
-        sub = to_submission(cands, p, "gui", "https://github.com/gui/gui")
+        sub = to_submission(cands, p, "gui", "https://github.com/gui/gui", plain=True)
         self._from_submission(sub)
         mp = det._mp_events() if hasattr(det, "_mp_events") else []
         self.mp = [(e["tr"], naive(e["start"]), naive(e["end"])) for e in mp]
@@ -144,7 +144,8 @@ class Data:
         if isinstance(sub, (str, Path)):
             sub = json.loads(Path(sub).read_text())
         self.dets = [dict(kind="DET", id=f"D{i + 1:03d}", cls=d["class"], tractors=d["tractors"], start=naive(d["start"]),
-                          end=naive(d["end"]), conf=d["confidence"], evidence=d["evidence"], action=d["action"])
+                          end=naive(d["end"]), conf=d["confidence"], evidence=d["evidence"], action=d["action"],
+                          reasoning=d.get("reasoning", []))
                      for i, d in enumerate(sorted(sub["detections"], key=lambda d: d["start"]))]
         if not self.mp:
             self.mp = [(d["tractors"][0], d["start"], d["end"]) for d in self.dets if d["cls"] == "MULTIPATH"]
