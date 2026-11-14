@@ -26,11 +26,26 @@ class Params:
     bin_s: int = 10                 # feature resolution (s); keep small so 2-3 min multipath survives
     smooth_s: int = 30              # median smoothing of per-bin deviations (odd number of bins)
     work_speed: float = 1.0         # m/s: "working" if mean speed above this
+    chauvenet_baseline: bool = True # iteratively reject Chauvenet outliers before taking each machine's baseline
+    corr_block_s: int = 60          # block-mean length for correlation/CI (1 Hz and 10 s bins are autocorrelated)
+    glitch_filter: bool = True      # (inactive) parameters of Detector._sustained, kept for its unit test; see docs/ME457_METHODS.md
+    glitch_z: float = 2.0           # |e/S_yx| above this counts as a real departure from the local trend
+    glitch_ctx_s: int = 600         # context either side used to fit the local trend
+    glitch_min_run: int = 2         # consecutive bins beyond glitch_z needed ("consistent with neighbours")
+    glitch_syx_floor: float = 0.25  # dB floor on S_yx so a very quiet context does not make everything significant
+    lag_step_min: int = 15          # S4 lag regression step (S4 cadence)
+    corr_alpha: float = 0.05        # significance level for Pearson r (r_crit) and the t confidence intervals
     # --- signal (C/N0) channel ---
     cn0_drop_db: float = 4.0        # per-tractor deviation below its own baseline that counts as degraded
     regional_drop_db: float = 3.0   # median-of-fleet deviation that counts as a regional event
     min_signal_s: int = 180         # shortest non-multipath signal event
     gap_bridge_s: int = 120         # bridge dropouts inside one event
+    link_gap_s: int = 300           # link outages flicker (~90 s down every ~4 min): bridge this far
+    jam_track_r2: float = 0.8       # per-machine C/N0 tracks the fleet this well inside a jam -> same cause, not a 2nd fault
+    kp_lead_h: float = 3.0          # Kp credit only from bins overlapping the event or this many hours before it
+    uniform_spread_db: float = 1.0  # per-machine C/N0 loss differing by >= this is NOT a uniform (ionospheric) pattern
+    cm_min_machines: int = 2        # common-mode spoof guard: this many machines with large XTE at once
+    jam_step_db: float = 6.0        # regional level this far below the surrounding storm level = jammer on top of a storm
     # --- XTE (spoofing) channel ---
     xte_abs_m: float = 1.0          # |XTE| above this while moving
     xte_k_mad: float = 6.0          # ...and above median + k*MAD of healthy XTE (whichever is larger)
@@ -45,14 +60,23 @@ class Params:
     # --- multipath ---
     mp_max_s: int = 180             # multipath events are brief
     mp_min_s: int = 20
-    mp_cell_m: float = 40.0         # same-place clustering radius
-    mp_min_recur: int = 2
+    mp_min_recur: int = 5           # occurrences (all 72 h) needed before a spot counts as a recurring obstruction
+    mp_dip_db: float = 6.0          # min C/N0 this far below the machine's own 15-min median = multipath dip
+    mp_dip_max_db: float = 16.0     # deeper than this is an antenna dropout, not a reflection
+    mp_ctx_s: int = 900             # rolling-median context for the min C/N0 baseline (follows storms)
+    mp_evt_min_s: int = 8           # shortest dip kept (1 Hz)
+    mp_band_m: float = 20.0         # recurring spot = north-south band this wide around the modal latitude
+    max_detections: int = 495       # validator hard limit is 500
     # --- SDA corroboration ---
     s4_high: float = 0.30           # S4 considered elevated above this (relative to baseline below)
     s4_lag_min: int = 90            # S4 can lag Kp; look this far around the farm event
     kp_high: float = 5.0
     dst_low: float = -50.0
-    rfi_window_min: int = 45        # reports arrive 10-30 min late; match reports ts in [start, end+this]
+    rfi_window_min: int = 35        # reports arrive 10-30 min late: accept report time up to end + this (30 + 5 slack)
+    rfi_min_delay_min: int = 5      # ...and no earlier than start + this (10 min minimum delay, 5 slack)
+    rfi_conf_min: float = 0.5       # reports whose own confidence is below this count half
+    dst_lead_h: float = 6.0         # Dst look-back (Dst recovers slowly, so longer than the Kp look-back)
+    storm_min_s: int = 3600         # a uniform fleet-wide loss lasting at least this long earns storm credit without S4
     rfi_dist_km: float = 15.0
     # --- timing / confidence ---
     onset_shift_s: float = 0.0      # fitted bias between detected and true onset on dev

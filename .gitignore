@@ -5,3 +5,7 @@ __pycache__/
 outputs/
 *.zip
 .ipynb_checkpoints/
+# review artifacts (kept locally, not part of the public entry)
+review_scratch/
+REVIEW.md
+findings.json

@@ -102,5 +102,10 @@ def load_all(data_dir):
     adv = _records(adv, ("advisories",)) if adv else []
     lab = d / "labels/train_episodes.json"
     train = _records(json.loads(lab.read_text()), ("episodes",)) if lab.exists() else []
-    return Bundle(load_telemetry(d / "farm/tractor_telemetry.csv.gz"), kp, dst, s4, adv,
-                  load_rfi(d / "sda/rfi_reports.json"), train)
+    rfi_path = d / "sda/rfi_reports.json"
+    if rfi_path.exists():
+        rfi = load_rfi(rfi_path)
+    else:
+        print(f"WARNING: {rfi_path} not found; continuing with no RFI reports")
+        rfi = pd.DataFrame()
+    return Bundle(load_telemetry(d / "farm/tractor_telemetry.csv.gz"), kp, dst, s4, adv, rfi, train)

@@ -33,8 +33,6 @@ GRID = {
     "sats_drop": [2.0, 3.0, 4.0, 6.0],
     "min_cn0_dip_db": [8.0, 10.0, 12.0, 16.0],
     "dropout_density": [0.15, 0.3, 0.5],
-    "mp_min_s": [10, 20, 30],
-    "mp_max_s": [150, 180],
     "s4_high": [0.2, 0.25, 0.3, 0.4],
     "smooth_s": [10, 30, 50],
 }
@@ -46,6 +44,8 @@ def objective(res):
 
 
 def evaluate(bundle, p, window, eps):
+    p = copy.copy(p)
+    p.max_detections = 10 ** 9          # never thin multipath while scoring (48 h dev would exceed the 495 cap)
     res, _, _ = score_window(bundle, p, window, eps)
     return objective(res), res
 

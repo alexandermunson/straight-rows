@@ -39,7 +39,7 @@
 * Repo public → fork Bluestaq/ndsu-hackathon-submissions → add ONLY `submissions/<handle>/submission.json` → one PR
   **shortly before 4:00 pm CT** (do not open early; nothing may change after the deadline). No email / student ID anywhere.
 * Note the starter notebook says "hour 22" for the lock but the guide, README and site all say hour 24 / 4:00 pm CT. Trust 4:00 pm CT
-  but submit with margin and confirm with universityprograms@bluestaq.com if in doubt.
+  but submit with margin and confirm with the organizers if in doubt.
 
 ## Demo (5 min + 3 min Q&A)
 1 min problem → 2 min one episode end to end (plot, evidence strings, action) → 1 min an ambiguous case (jam vs fault, or

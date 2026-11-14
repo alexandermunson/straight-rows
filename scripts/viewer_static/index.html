@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Straight Rows Viewer</title>
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --text:#1c1f24; --muted:#6b7280; --grid:#e5e7eb; --axis:#9ca3af; --border:#d8dbe0;
+  --accent:#2563eb; --hl:#eef2ff; --plotbg:#ffffff; --tipbg:rgba(255,255,255,.96);
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#111418; --panel:#181c22; --text:#e6e8eb; --muted:#9aa3af; --grid:#272c34; --axis:#5b6470; --border:#2b313a;
+    --accent:#60a5fa; --hl:#1e2a44; --plotbg:#14181d; --tipbg:rgba(24,28,34,.96); }
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:13px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+#app{display:grid;grid-template-columns:240px minmax(0,1fr) 400px;height:100vh;gap:8px;padding:8px}
+aside,section,main{background:var(--panel);border:1px solid var(--border);border-radius:8px;min-height:0}
+aside{display:flex;flex-direction:column;padding:10px;gap:10px;overflow:hidden}
+h1{font-size:15px;margin:0}
+h2{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 4px}
+.row{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+label{display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
+button{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:3px 8px;cursor:pointer}
+button:hover{border-color:var(--accent)} button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+select{font:inherit;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:2px 4px}
+#events{flex:1;overflow:auto;border:1px solid var(--border);border-radius:6px}
+.ev{display:flex;gap:6px;padding:5px 7px;border-bottom:1px solid var(--grid);cursor:pointer;align-items:flex-start}
+.ev:hover{background:var(--hl)} .ev.sel{background:var(--hl);outline:2px solid var(--accent);outline-offset:-2px}
+.dot{width:10px;height:10px;border-radius:50%;margin-top:3px;flex:none}
+.ev small{color:var(--muted);display:block}
+.kind{font-weight:600;font-size:10px;padding:0 4px;border-radius:3px;border:1px solid var(--border);margin-right:4px}
+main{display:flex;flex-direction:column;padding:6px;gap:6px}
+#strip{height:64px;width:100%;display:block;border-radius:6px;cursor:ew-resize;touch-action:none}
+#plots{position:relative;flex:1;min-height:0}
+#plots canvas{position:absolute;inset:0;width:100%;height:100%}
+#top{cursor:crosshair;touch-action:none}
+section{display:flex;flex-direction:column;padding:8px;gap:8px;overflow:hidden}
+#map{width:100%;height:340px;display:block;border-radius:6px;background:var(--plotbg);border:1px solid var(--border)}
+#info{flex:1;overflow:auto;font-size:12px}
+#info h3{margin:0 0 4px;font-size:14px}
+#info .meta{color:var(--muted);margin-bottom:6px}
+#info ul{margin:6px 0 0;padding-left:16px} #info li{margin:0 0 5px}
+#status{position:absolute;right:8px;top:6px;font-size:11px;color:var(--muted);background:var(--panel);padding:1px 6px;border-radius:10px;border:1px solid var(--border);z-index:5}
+kbd{background:var(--bg);border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;padding:0 4px;font-size:11px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:11px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside>
+    <h1>Straight Rows</h1>
+    <div><h2>Tractors</h2><div class="row" id="trs"></div></div>
+    <div><h2>Overlays</h2><div class="row" id="opts"></div></div>
+    <div><h2>Window</h2><div class="row" id="spans"></div></div>
+    <div><h2>Events</h2>
+      <div class="row">
+        <label><input type="checkbox" id="fTruth" checked>truth</label>
+        <label><input type="checkbox" id="fDet" checked>ours</label>
+        <select id="fCls"><option value="ALL">all classes</option></select>
+      </div>
+    </div>
+    <div id="events"></div>
+    <div class="legend"><span><kbd>n</kbd><kbd>p</kbd> events</span><span><kbd>←</kbd><kbd>→</kbd> pan</span><span><kbd>+</kbd><kbd>-</kbd> zoom</span><span><kbd>0</kbd> all</span></div>
+  </aside>
+  <main>
+    <canvas id="strip"></canvas>
+    <div id="plots"><canvas id="base"></canvas><canvas id="top"></canvas><div id="status">loading…</div></div>
+  </main>
+  <section>
+    <canvas id="map"></canvas>
+    <div class="legend" id="legend"></div>
+    <div id="info"></div>
+  </section>
+</div>
+<script>
+'use strict';
+// ------------------------------------------------------------------ constants
+const TC = ['#0072B2', '#009E73', '#CC79A7'];
+const CH = {cn0: 0, mincn0: 1, xte: 2, sats: 3, fix: 4, link: 5, lat: 6, lon: 7, spd: 8}, NCH = 9;
+const CLS = {SPACE_WEATHER: ['#6a3d9a', 'SW'], JAMMING: ['#e31a1c', 'JAM'], SPOOFING: ['#ff7f00', 'SPOOF'],
+             EQUIPMENT_FAULT: ['#8c6d31', 'EQUIP'], MULTIPATH: ['#7f7f7f', 'MP']};
+const PANELS = [['mean C/N0 (dB-Hz)', 1.2], ['min C/N0 (dB-Hz)', 1.2], ['|XTE| (m)', 1.0], ['satellites', 0.8],
+                ['fix quality', 0.8], ['base link', 0.75], ['SDA  Kp / S4', 1.15]];
+const ML = 74, MR = 46, MT = 6, MB = 24, GAP = 6, BUDGET = 20000;
+const SPANS = [['10 min', 600], ['1 h', 3600], ['3 h', 10800], ['6 h', 21600], ['12 h', 43200], ['24 h', 86400], ['72 h', 259200]];
+const $ = id => document.getElementById(id);
+const FIXSHORT = ['NO FIX', 'AUTO', 'DGPS', 'FLOAT', 'FIXED'];
+
+// ------------------------------------------------------------------ state
+let M = null, EPOCH = 0, TOTAL = 259200;
+const LV = {};                                  // res -> {n, a:[tr][ch] Float32Array}
+const view = {t0: 0, t1: 259200}, target = {t0: 0, t1: 259200};
+const S = {vis: [true, true, true], truth: true, dets: true, mp: true, base: true, xlog: false, sel: -1,
+           hoverX: null, hoverY: null, kind: {TRUTH: true, DET: true}, cls: 'ALL', drag: null};
+let dirtyBase = true, dirtyTop = true, lastFrame = 0, curRes = 60, P = [];       // P = last drawn panel geometry
+let cssv = null, cache = null;
+
+// ------------------------------------------------------------------ helpers
+const pad2 = n => String(n).padStart(2, '0');
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+function fmtT(t, secs) {
+  const d = new Date(EPOCH + t * 1000);
+  return `${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}` + (secs ? `:${pad2(d.getUTCSeconds())}` : '') + 'Z';
+}
+function niceTicks(lo, hi, n) {
+  const span = hi - lo || 1, raw = span / Math.max(1, n), mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 5, 10].map(m => m * mag).find(s => s >= raw) || 10 * mag, out = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+const css = n => cssv.getPropertyValue(n).trim();
+function fit(cv) {
+  const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+  const w = Math.max(1, Math.round(r.width * d)), h = Math.max(1, Math.round(r.height * d));
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  const c = cv.getContext('2d'); c.setTransform(d, 0, 0, d, 0, 0);
+  return {c, w: r.width, h: r.height};
+}
+function pickRes() {
+  const span = view.t1 - view.t0;
+  for (const r of [1, 10, 60]) if (LV[r] && span / r <= BUDGET) return r;
+  return LV[60] ? 60 : 0;
+}
+
+// ------------------------------------------------------------------ decimation (min/max per pixel column)
+// Returns {mode:0, i0, i1} when points are sparse enough to draw directly, else {mode:1, mn, mx, lo, hi}.
+function dec(arr, res, x0, w, t0, t1, tf) {
+  const W = Math.max(1, Math.floor(w)), span = t1 - t0;
+  const i0 = Math.max(0, Math.floor(t0 / res) - 1), i1 = Math.min(arr.length, Math.ceil(t1 / res) + 2);
+  let lo = Infinity, hi = -Infinity;
+  if (i1 - i0 <= 0.6 * W) {                       // sparse: a real polyline is cheap and exact
+    for (let i = i0; i < i1; i++) { const v = arr[i]; if (v === v) { const y = tf ? tf(v) : v; if (y < lo) lo = y; if (y > hi) hi = y; } }
+    return {mode: 0, i0, i1, lo, hi};
+  }
+  const mn = new Float32Array(W).fill(Infinity), mx = new Float32Array(W).fill(-Infinity), ls = new Float32Array(W), k = W / span;
+  for (let i = i0; i < i1; i++) {
+    const v = arr[i]; if (v !== v) continue;
+    const y = tf ? tf(v) : v;
+    let c = Math.floor((i * res + res / 2 - t0) * k); if (c < 0 || c >= W) continue;
+    if (y < mn[c]) mn[c] = y; if (y > mx[c]) mx[c] = y; ls[c] = y;
+    if (y < lo) lo = y; if (y > hi) hi = y;
+  }
+  return {mode: 1, mn, mx, ls, lo, hi, W};
+}
+// draw a decimated series into rect r; fy maps (transformed) value -> pixel y; off adds a value offset; step for categorical
+function strokeSeries(c, dd, arr, res, r, t0, t1, fy, tf, color, lw, step, off, sc) {
+  const span = t1 - t0, k = r.w / span;
+  c.beginPath(); c.strokeStyle = color; c.lineWidth = lw;
+  const o = off || 0, m = sc || 1;
+  if (dd.mode === 0) {
+    let started = false, py = 0;
+    for (let i = dd.i0; i < dd.i1; i++) {
+      let v = arr[i]; if (v !== v) { started = false; continue; }
+      const x = r.x + (i * res + (step ? 0 : res / 2) - t0) * k, y = fy((tf ? tf(v) : v) * m + o);
+      if (!started) { c.moveTo(x, y); started = true; } else { if (step) c.lineTo(x, py); c.lineTo(x, y); }
+      py = y;
+    }
+    if (started && step) c.lineTo(r.x + r.w, py);
+  } else {
+    // dense: one pixel-aligned rect per column spanning [min,max]. No anti-aliasing / joins, ~10x cheaper than a zigzag stroke.
+    c.fillStyle = color; const hmin = Math.max(1, lw * 0.9);
+    let prev = NaN;                                  // last value of the previous column: joins sparse columns into a continuous trace
+    for (let col = 0; col < dd.W; col++) {
+      const a = dd.mn[col]; if (a === Infinity) { prev = NaN; continue; }
+      let lo = a, hi = dd.mx[col];
+      if (prev === prev) { if (prev < lo) lo = prev; if (prev > hi) hi = prev; }
+      prev = dd.ls[col];
+      const ya = fy(lo * m + o), yb = fy(hi * m + o), top = Math.min(ya, yb);
+      c.fillRect(r.x + col, top - hmin / 2, 1, Math.abs(ya - yb) + hmin);
+    }
+    return;
+  }
+  c.stroke();
+}
+
+// ------------------------------------------------------------------ layout
+function layout(w, h) {
+  const inner = h - MT - MB - GAP * (PANELS.length - 1), tot = PANELS.reduce((s, p) => s + p[1], 0);
+  let y = MT;
+  return PANELS.map(p => { const ph = inner * p[1] / tot, r = {x: ML, y, w: w - ML - MR, h: ph}; y += ph + GAP; return r; });
+}
+function timeTicks(t0, t1, w) {
+  const steps = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200, 86400];
+  const st = steps.find(s => (t1 - t0) / s <= w / 95) || 86400, out = [];
+  for (let t = Math.ceil(t0 / st) * st; t <= t1; t += st) out.push([t, st]);
+  return out;
+}
+const tickLabel = (t, st) => {
+  const d = new Date(EPOCH + t * 1000), hm = `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
+  if (st >= 86400 || (d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0)) return `${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} ${hm}`;
+  return st < 60 ? `${hm}:${pad2(d.getUTCSeconds())}` : hm;
+};
+
+// ------------------------------------------------------------------ main draw
+function drawBase() {
+  const {c, w, h} = fit($('base'));
+  const {t0, t1} = view, span = t1 - t0, res = pickRes(); curRes = res;
+  c.clearRect(0, 0, w, h);
+  c.fillStyle = css('--plotbg'); c.fillRect(0, 0, w, h);
+  const rects = layout(w, h); P = [];
+  const grid = css('--grid'), axis = css('--axis'), txt = css('--muted');
+  c.font = '10px system-ui, sans-serif';
+  const L = LV[res];
+  const tf = {xte: S.xlog ? v => Math.log10(1 + v / 0.1) : null};
+  const xOf = t => rects[0].x + (t - t0) / span * rects[0].w;
+
+  rects.forEach((r, pi) => {
+    // ---- y range
+    let lo = Infinity, hi = -Infinity; const decs = [];
+    const chOf = ['cn0', 'mincn0', 'xte', 'sats', 'fix', 'link'][pi];
+    if (L && chOf) {
+      for (let tr = 0; tr < 3; tr++) {
+        if (!S.vis[tr]) { decs.push(null); continue; }
+        const arr = L.a[tr][CH[chOf]], d = dec(arr, res, r.x, r.w, t0, t1, tf[chOf]);
+        decs.push(d); lo = Math.min(lo, d.lo); hi = Math.max(hi, d.hi);
+      }
+    }
+    if (pi === 0 || pi === 1) { if (S.base && M) for (let tr = 0; tr < 3; tr++) if (S.vis[tr]) { const b = M.base[M.tractors[tr]][chOf]; lo = Math.min(lo, b); hi = Math.max(hi, b); } }
+    let y0, y1;
+    if (pi === 2) { y0 = 0; y1 = Math.max(hi * 1.1, S.xlog ? 0.5 : 0.35); }
+    else if (pi === 4) { y0 = -0.4; y1 = 4.6; }
+    else if (pi === 5) { y0 = -0.2; y1 = 3.0; }
+    else if (pi === 6) { y0 = 0; y1 = 9.5; }
+    else { if (!isFinite(lo)) { lo = 0; hi = 1; } const m = Math.max((hi - lo) * 0.08, 0.5); y0 = lo - m; y1 = hi + m; }
+    const fy = v => r.y + r.h - (v - y0) / (y1 - y0) * r.h;
+    P.push({r, fy, y0, y1, res});
+
+    // ---- grid + y labels
+    c.save(); c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
+    c.strokeStyle = grid; c.lineWidth = 1;
+    for (const [t] of timeTicks(t0, t1, r.w)) { const x = Math.round(xOf(t)) + 0.5; c.beginPath(); c.moveTo(x, r.y); c.lineTo(x, r.y + r.h); c.stroke(); }
+    let yt;
+    if (pi === 2 && S.xlog) yt = [0, 0.1, 0.3, 1, 3, 10, 30].filter(v => tf.xte(v) <= y1).map(v => [tf.xte(v), v]);
+    else if (pi === 4) yt = [0, 1, 2, 3, 4].map(v => [v, v]);
+    else if (pi === 5) yt = [0, 1, 2].map(v => [v + 0.4, v]);
+    else yt = niceTicks(y0, y1, Math.max(2, Math.floor(r.h / 26))).map(v => [v, v]);
+    for (const [yv] of yt) { const y = Math.round(fy(yv)) + 0.5; c.beginPath(); c.moveTo(r.x, y); c.lineTo(r.x + r.w, y); c.stroke(); }
+    c.restore();
+    c.fillStyle = txt; c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const [yv, lab] of yt) {
+      let s = pi === 4 ? FIXSHORT[lab] : pi === 5 ? `T${lab + 1}` : (Math.abs(lab) >= 100 ? lab.toFixed(0) : +lab.toFixed(2)).toString();
+      c.fillText(s, r.x - 6, fy(yv));
+    }
+    c.save(); c.translate(11, r.y + r.h / 2); c.rotate(-Math.PI / 2); c.textAlign = 'center'; c.fillStyle = txt; c.font = '10px system-ui'; c.fillText(PANELS[pi][0], 0, 0); c.restore();
+    c.strokeStyle = axis; c.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+
+    // ---- series
+    c.save(); c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
+    if (pi <= 5 && L) {
+      for (let tr = 0; tr < 3; tr++) {
+        const d = decs[tr]; if (!d) continue;
+        const arr = L.a[tr][CH[chOf]];
+        if (pi === 4) strokeSeries(c, d, arr, res, r, t0, t1, fy, null, TC[tr], 1.4, true, 0.09 * tr);
+        else if (pi === 5) strokeSeries(c, d, arr, res, r, t0, t1, fy, null, TC[tr], 1.6, true, tr, 0.8);
+        else strokeSeries(c, d, arr, res, r, t0, t1, fy, tf[chOf], TC[tr], res === 1 && d.mode === 0 ? 1 : 1.2, false, 0);
+      }
+      if (pi <= 1 && S.base) {
+        c.setLineDash([2, 3]); c.lineWidth = 1;
+        for (let tr = 0; tr < 3; tr++) if (S.vis[tr]) { c.strokeStyle = TC[tr] + '99'; const y = fy(M.base[M.tractors[tr]][chOf]); c.beginPath(); c.moveTo(r.x, y); c.lineTo(r.x + r.w, y); c.stroke(); }
+        c.setLineDash([]);
+      }
+      if (pi === 2) { const y = fy(S.xlog ? tf.xte(1) : 1); c.strokeStyle = axis; c.setLineDash([2, 3]); c.beginPath(); c.moveTo(r.x, y); c.lineTo(r.x + r.w, y); c.stroke(); c.setLineDash([]); }
+    }
+    if (pi === 6 && M) drawSDA(c, r, fy, t0, t1, xOf, y0, y1);
+    c.restore();
+  });
+
+  // ---- time axis
+  const last = rects[rects.length - 1];
+  c.fillStyle = txt; c.textAlign = 'center'; c.textBaseline = 'top';
+  for (const [t, st] of timeTicks(t0, t1, last.w)) { const x = xOf(t); if (x >= last.x - 2 && x <= last.x + last.w + 2) c.fillText(tickLabel(t, st), x, last.y + last.h + 5); }
+
+  drawOverlays(c, rects, xOf, t0, t1, span);
+  $('status').textContent = res ? `${res} s bins · ${new Date(EPOCH + t0 * 1000).toISOString().slice(0, 16)}Z → ${new Date(EPOCH + t1 * 1000).toISOString().slice(0, 16)}Z` : 'loading…';
+}
+
+function drawSDA(c, r, fy, t0, t1, xOf, y0, y1) {
+  const kp = M.kp; c.beginPath(); c.strokeStyle = css('--text'); c.lineWidth = 1.4; c.globalAlpha = .8;
+  let st = false;
+  for (let i = 0; i < kp.length; i++) {
+    const x = xOf(kp[i][0]), y = fy(kp[i][1]);
+    if (!st) { c.moveTo(x, y); st = true; } else { c.lineTo(x, c.__py); c.lineTo(x, y); }
+    c.__py = y;
+  }
+  if (st) c.lineTo(xOf(t1 + 1e5), c.__py);
+  c.stroke(); c.globalAlpha = 1;
+  c.setLineDash([2, 3]); c.strokeStyle = css('--axis'); c.beginPath(); c.moveTo(r.x, fy(5)); c.lineTo(r.x + r.w, fy(5)); c.stroke(); c.setLineDash([]);
+  // S4 on the right axis (0..s4max)
+  const s4max = 0.6, fs = v => r.y + r.h - v / s4max * r.h;
+  c.beginPath(); c.strokeStyle = '#6a3d9a'; c.lineWidth = 1.2; st = false;
+  const s4 = M.s4;
+  for (let i = 0; i < s4.length; i++) {
+    const t = s4[i][0]; if (t < t0 - 3600 || t > t1 + 3600) continue;
+    const x = xOf(t), y = fs(Math.min(s4[i][1], s4max));
+    if (!st) { c.moveTo(x, y); st = true; } else c.lineTo(x, y);
+  }
+  c.stroke();
+  c.setLineDash([2, 3]); c.strokeStyle = '#6a3d9a88'; c.beginPath(); c.moveTo(r.x, fs(0.3)); c.lineTo(r.x + r.w, fs(0.3)); c.stroke(); c.setLineDash([]);
+  c.fillStyle = '#6a3d9a'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.font = '10px system-ui';
+  c.restore(); c.save();
+  for (const v of [0, 0.2, 0.4, 0.6]) c.fillText(v.toFixed(1), r.x + r.w + 4, fs(v));
+  c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
+  for (const q of M.rfi) if (q.t >= t0 - 3600 && q.t <= t1) {
+    const x = xOf(q.t); c.strokeStyle = '#e31a1c'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x, r.y); c.lineTo(x, r.y + r.h); c.stroke();
+    c.fillStyle = '#e31a1c'; c.textAlign = 'left'; c.textBaseline = 'top'; c.fillText(` RFI ${q.id} c=${q.conf.toFixed(2)}`, x, r.y + 2);
+  }
+  for (const a of M.adv) if (a.t >= t0 && a.t <= t1) {
+    const x = xOf(a.t); c.strokeStyle = css('--axis'); c.setLineDash([4, 3]); c.lineWidth = 1; c.beginPath(); c.moveTo(x, r.y); c.lineTo(x, r.y + r.h); c.stroke(); c.setLineDash([]);
+    c.fillStyle = css('--muted'); c.textAlign = 'left'; c.textBaseline = 'bottom'; c.fillText(' ' + a.type, x, r.y + r.h - 2);
+  }
+}
+
+function inView(e) { return e.e >= view.t0 && e.s <= view.t1; }
+function drawOverlays(c, rects, xOf, t0, t1, span) {
+  const top = rects[0].y, bot = rects[rects.length - 1].y + rects[rects.length - 1].h, x0 = rects[0].x, x1 = x0 + rects[0].w;
+  c.save(); c.beginPath(); c.rect(x0, 0, x1 - x0, bot + 2); c.clip();
+  if (S.dets) for (const e of M.events) if (e.kind === 'DET' && inView(e)) {
+    const xa = xOf(e.s), xb = xOf(e.e); c.fillStyle = CLS[e.cls][0] + '24';
+    rects.forEach(r => c.fillRect(xa, r.y, Math.max(1, xb - xa), r.h));
+  }
+  if (S.truth) for (const e of M.events) if (e.kind === 'TRUTH' && inView(e)) {
+    c.strokeStyle = CLS[e.cls][0]; c.lineWidth = 1.3; c.setLineDash([5, 3]);
+    for (const x of [xOf(e.s), xOf(e.e)]) { c.beginPath(); c.moveTo(x, top); c.lineTo(x, bot); c.stroke(); }
+    c.setLineDash([]);
+  }
+  c.font = 'bold 10px system-ui'; c.textBaseline = 'top'; c.textAlign = 'left';
+  for (const e of M.events) if (inView(e) && ((e.kind === 'DET' && S.dets) || (e.kind === 'TRUTH' && S.truth))) {
+    const xa = Math.max(xOf(e.s), x0), wpx = xOf(e.e) - xOf(e.s); if (wpx < 26) continue;
+    c.fillStyle = CLS[e.cls][0];
+    const lab = e.kind === 'DET' ? `${CLS[e.cls][1]} ${e.tr.join(',')} ${e.conf.toFixed(2)}` : `TRUTH ${e.id} ${CLS[e.cls][1]} ${e.tr.join(',')}`;
+    c.fillText(' ' + lab, xa + 1, top + 3 + (e.kind === 'DET' ? 0 : 12));
+  }
+  if (S.mp && span <= 21600) {
+    const r = rects[1];
+    for (const [tr, s] of M.mp) if (s >= t0 && s <= t1 && S.vis[tr]) {
+      const x = xOf(s), y = r.y + r.h - 4 - tr * 5; c.fillStyle = TC[tr]; c.beginPath(); c.moveTo(x - 3, y); c.lineTo(x + 3, y); c.lineTo(x, y - 6); c.fill();
+    }
+  }
+  if (S.sel >= 0) {
+    const e = M.events[S.sel]; if (inView(e)) { c.strokeStyle = css('--text'); c.lineWidth = 1.5; const xa = xOf(e.s), xb = xOf(e.e); rects.forEach(r => c.strokeRect(xa, r.y + 1, Math.max(2, xb - xa), r.h - 2)); }
+  }
+  c.restore();
+}
+
+// ------------------------------------------------------------------ top layer: crosshair + tooltip
+function sampleAt(res, tr, ch, t) {
+  const L = LV[res]; if (!L) return NaN; const i = clamp(Math.floor(t / res), 0, L.n - 1); return L.a[tr][CH[ch]][i];
+}
+function nearest(arr, t) { let best = null, bd = 1e18; for (const p of arr) { const d = Math.abs(p[0] - t); if (d < bd) { bd = d; best = p; } } return best; }
+function drawTop() {
+  const {c, w, h} = fit($('top')); c.clearRect(0, 0, w, h);
+  if (S.hoverX === null || !P.length) return;
+  const x = S.hoverX, r0 = P[0].r;
+  if (x < r0.x || x > r0.x + r0.w) return;
+  const t = view.t0 + (x - r0.x) / r0.w * (view.t1 - view.t0), res = P[0].res;
+  c.strokeStyle = css('--text'); c.globalAlpha = .55; c.lineWidth = 1; c.beginPath(); c.moveTo(Math.round(x) + .5, MT); c.lineTo(Math.round(x) + .5, h - MB); c.stroke(); c.globalAlpha = 1;
+  const lines = [fmtT(t, true)];
+  const chs = ['cn0', 'mincn0', 'xte', 'sats', 'fix', 'link'];
+  for (let tr = 0; tr < 3; tr++) {
+    if (!S.vis[tr] || !res) continue;
+    const v = chs.map(ch => sampleAt(res, tr, ch, t));
+    lines.push([`T${tr + 1}`, `C/N0 ${v[0].toFixed(1)}  min ${v[1].toFixed(1)}  |XTE| ${v[2].toFixed(2)}  sats ${v[3].toFixed(1)}  ${M.fix_names[Math.round(v[4])] || '?'}  link ${v[5] >= 1 ? 'ok' : 'DOWN'}`, tr]);
+    chs.forEach((ch, pi) => { if (pi < 4 && isFinite(v[pi])) { const p = P[pi], val = pi === 2 && S.xlog ? Math.log10(1 + v[2] / 0.1) : v[pi]; c.fillStyle = TC[tr]; c.beginPath(); c.arc(x, p.fy(val), 3, 0, 7); c.fill(); } });
+  }
+  const kp = nearest(M.kp.filter(q => q[0] <= t + 1), t), s4 = nearest(M.s4, t), dst = M.dst.length ? nearest(M.dst, t) : null;
+  lines.push(['SDA', `Kp ${kp ? kp[1].toFixed(1) : '-'}  S4 ${s4 ? s4[1].toFixed(2) : '-'}` + (dst ? `  Dst ${dst[1].toFixed(0)} nT` : ''), -1]);
+  c.font = '11px ui-monospace, SFMono-Regular, Menlo, monospace';
+  const texts = lines.map(l => typeof l === 'string' ? l : `${l[0]}  ${l[1]}`), tw = Math.max(...texts.map(s => c.measureText(s).width)) + 14, th = texts.length * 15 + 8;
+  let bx = x + 14; if (bx + tw > r0.x + r0.w) bx = x - tw - 14; const by = clamp((S.hoverY || 0) - th / 2, MT, h - MB - th);
+  c.fillStyle = css('--tipbg'); c.strokeStyle = css('--border'); c.beginPath(); c.roundRect(bx, by, tw, th, 6); c.fill(); c.stroke();
+  c.textBaseline = 'top'; c.textAlign = 'left';
+  lines.forEach((l, i) => { c.fillStyle = typeof l === 'string' || l[2] < 0 ? css('--text') : TC[l[2]]; c.fillText(texts[i], bx + 7, by + 5 + i * 15); });
+}
+
+// ------------------------------------------------------------------ overview strip
+function drawStrip() {
+  const {c, w, h} = fit($('strip')); c.clearRect(0, 0, w, h);
+  c.fillStyle = css('--plotbg'); c.fillRect(0, 0, w, h);
+  const x0 = 6, W = w - 12, L = LV[60] || LV[10];
+  if (L && M) {
+    const res = LV[60] ? 60 : 10, fy = v => h - 14 - (v - 5) / 45 * (h - 22), k = W / TOTAL;
+    for (const e of M.events) if (e.kind === 'DET') { c.fillStyle = CLS[e.cls][0] + '40'; c.fillRect(x0 + e.s * k, 0, Math.max(1.5, (e.e - e.s) * k), h - 12); }
+    for (const e of M.events) if (e.kind === 'TRUTH') { c.fillStyle = CLS[e.cls][0]; c.fillRect(x0 + e.s * k, h - 12, Math.max(1.5, (e.e - e.s) * k), 3); }
+    for (let tr = 0; tr < 3; tr++) { if (!S.vis[tr]) continue; const d = dec(L.a[tr][CH.cn0], res, x0, W, 0, TOTAL); strokeSeries(c, d, L.a[tr][CH.cn0], res, {x: x0, w: W}, 0, TOTAL, fy, null, TC[tr] + 'cc', 1, false, 0); }
+    c.fillStyle = css('--muted'); c.font = '9px system-ui'; c.textBaseline = 'bottom'; c.textAlign = 'left';
+    for (let d = 0; d < 3; d++) c.fillText(fmtT(d * 86400).slice(0, 5), x0 + d * 86400 * k + 2, h - 1);
+    const xa = x0 + view.t0 * k, xb = x0 + view.t1 * k;
+    c.fillStyle = 'rgba(37,99,235,.14)'; c.fillRect(xa, 0, xb - xa, h); c.strokeStyle = css('--accent'); c.lineWidth = 1.5; c.strokeRect(xa + .5, .5, Math.max(2, xb - xa), h - 1);
+  }
+}
+
+// ------------------------------------------------------------------ map
+function drawMap() {
+  const {c, w, h} = fit($('map')); c.clearRect(0, 0, w, h);
+  c.fillStyle = css('--plotbg'); c.fillRect(0, 0, w, h);
+  if (!M) return;
+  const F = M.field, cl = Math.cos(M.lat0 * Math.PI / 180);
+  const padLat = 0.0015, la0 = F.lat[0] - padLat, la1 = F.lat[1] + padLat, lo0 = F.lon[0] - padLat / cl, lo1 = F.lon[1] + padLat / cl;
+  const mw = (lo1 - lo0) * cl, mh = la1 - la0, s = Math.min((w - 16) / mw, (h - 30) / mh);
+  const ox = (w - mw * s) / 2, oy = 22 + (h - 30 - mh * s) / 2;
+  const px = lon => ox + (lon - lo0) * cl * s, py = lat => oy + (la1 - lat) * s;     // raw degrees
+  c.save(); c.beginPath(); c.rect(1, 18, w - 2, h - 19); c.clip();
+  c.strokeStyle = css('--grid'); c.lineWidth = 1; c.strokeRect(px(lo0), py(la1), mw * s, mh * s);
+  const span = view.t1 - view.t0, res = span <= 5400 ? 1 : span <= 64800 ? 10 : 60, L = LV[res];
+  const sel = S.sel >= 0 ? M.events[S.sel] : null;
+  if (L) {
+    const i0 = Math.max(0, Math.floor(view.t0 / res)), i1 = Math.min(L.n, Math.ceil(view.t1 / res));
+    for (let tr = 0; tr < 3; tr++) {
+      if (!S.vis[tr]) continue;
+      const la = L.a[tr][CH.lat], lo = L.a[tr][CH.lon], sp = L.a[tr][CH.spd];
+      c.fillStyle = TC[tr] + '88';
+      for (let i = i0; i < i1; i++) { if (!(sp[i] > 1)) continue; c.fillRect(px(lo[i] + M.lon0) - 0.8, py(la[i] + M.lat0) - 0.8, 1.7, 1.7); }
+      if (sel && sel.tr.includes(M.tractors[tr])) {
+        c.fillStyle = CLS[sel.cls][0];
+        const a = Math.max(i0, Math.floor(sel.s / res)), b = Math.min(i1, Math.ceil(sel.e / res));
+        for (let i = a; i < b; i++) { if (!(sp[i] > 1)) continue; c.fillRect(px(lo[i] + M.lon0) - 1.4, py(la[i] + M.lat0) - 1.4, 2.8, 2.8); }
+      }
+      const j = clamp(i1 - 1, 0, L.n - 1); if (la[j] === la[j]) { c.fillStyle = TC[tr]; c.strokeStyle = '#000'; c.beginPath(); c.arc(px(lo[j] + M.lon0), py(la[j] + M.lat0), 5, 0, 7); c.fill(); c.stroke(); }
+    }
+  }
+  if (S.mp && M.mp_lat !== null) { const y = py(M.mp_lat); c.strokeStyle = '#7f7f7f'; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); c.setLineDash([]); c.fillStyle = css('--muted'); c.font = '10px system-ui'; c.textAlign = 'left'; c.fillText('multipath band (headland)', 6, y - 3); }
+  for (const q of M.rfi) if (q.t >= view.t0 - 3600 && q.t <= view.t1 + 3600 && q.lat !== null) {
+    const cx = px(q.lon), cy = py(q.lat), rpx = Math.max(2, q.b * 1000 / 111320 * s), rpy = Math.max(2, q.a * 1000 / 111320 * s);
+    c.strokeStyle = '#e31a1c'; c.lineWidth = 1.3; c.beginPath(); c.ellipse(cx, cy, rpx, rpy, 0, 0, 7); c.stroke();
+    c.beginPath(); c.moveTo(cx - 4, cy - 4); c.lineTo(cx + 4, cy + 4); c.moveTo(cx + 4, cy - 4); c.lineTo(cx - 4, cy + 4); c.stroke();
+    c.fillStyle = '#e31a1c'; c.font = '10px system-ui'; c.textAlign = 'left'; c.fillText('RFI ' + q.id, cx + 6, cy - 5);
+  }
+  c.restore();
+  c.fillStyle = css('--muted'); c.font = '11px system-ui'; c.textAlign = 'left'; c.textBaseline = 'top';
+  c.fillText('Field map · working samples in window' + (sel ? ` · ${sel.id} highlighted` : ''), 6, 4);
+}
+
+// ------------------------------------------------------------------ frame loop (draws only when something changed)
+function frame(ts) {
+  const dt = Math.min(0.1, (ts - lastFrame) / 1000 || 0.016); lastFrame = ts;
+  const k = 1 - Math.exp(-dt / 0.075);
+  if (Math.abs(view.t0 - target.t0) > 0.01 || Math.abs(view.t1 - target.t1) > 0.01) {
+    view.t0 += (target.t0 - view.t0) * k; view.t1 += (target.t1 - view.t1) * k;
+    if (Math.abs(view.t0 - target.t0) < (view.t1 - view.t0) * 1e-4 && Math.abs(view.t1 - target.t1) < (view.t1 - view.t0) * 1e-4) { view.t0 = target.t0; view.t1 = target.t1; }
+    dirtyBase = true; scheduleHash();
+  }
+  if (dirtyBase) { cssv = getComputedStyle(document.documentElement); drawBase(); drawStrip(); drawMap(); dirtyBase = false; dirtyTop = true; }
+  if (dirtyTop) { drawTop(); dirtyTop = false; }
+  requestAnimationFrame(frame);
+}
+function setTarget(t0, t1, instant) {
+  let sp = clamp(t1 - t0, 20, TOTAL); t0 = clamp(t0, 0, TOTAL - sp);
+  target.t0 = t0; target.t1 = t0 + sp;
+  if (instant) { view.t0 = target.t0; view.t1 = target.t1; }
+  dirtyBase = true;
+}
+function zoomAt(t, f) { const a = target.t0, b = target.t1, sp = clamp((b - a) * f, 20, TOTAL), r = (t - a) / (b - a); setTarget(t - r * sp, t - r * sp + sp); }
+function pan(frac) { const sp = target.t1 - target.t0; setTarget(target.t0 + sp * frac, target.t1 + sp * frac); }
+let hashT = 0;
+function scheduleHash() { clearTimeout(hashT); hashT = setTimeout(() => { try { history.replaceState(null, '', `#t0=${view.t0.toFixed(0)}&t1=${view.t1.toFixed(0)}&ev=${S.sel}`); } catch (e) {} }, 300); }
+
+// ------------------------------------------------------------------ events list / selection
+function visibleEvents() { return M.events.map((e, i) => [e, i]).filter(([e]) => S.kind[e.kind] && (S.cls === 'ALL' || e.cls === S.cls)); }
+function buildList() {
+  const box = $('events'); box.innerHTML = '';
+  for (const [e, i] of visibleEvents()) {
+    const d = document.createElement('div'); d.className = 'ev' + (i === S.sel ? ' sel' : ''); d.dataset.i = i;
+    const dur = (e.e - e.s) / 60;
+    d.innerHTML = `<span class="dot" style="background:${CLS[e.cls][0]}"></span><div><span class="kind">${e.kind === 'TRUTH' ? 'TRUTH' : 'OURS'}</span><b>${e.id}</b> ${CLS[e.cls][1]} ${e.tr.join(',')}` +
+      `<small>${fmtT(e.s)} · ${dur < 1 ? (dur * 60).toFixed(0) + ' s' : dur.toFixed(0) + ' min'}${e.conf != null ? ' · conf ' + e.conf.toFixed(2) : ''}</small></div>`;
+    d.onclick = () => select(i, true); box.appendChild(d);
+  }
+}
+function select(i, go) {
+  S.sel = i; const e = M.events[i];
+  if (go) { const dur = e.e - e.s, sp = clamp(Math.max(dur * 4, 600), 600, TOTAL), mid = (e.s + e.e) / 2; setTarget(mid - sp / 2, mid + sp / 2); }
+  document.querySelectorAll('.ev').forEach(n => n.classList.toggle('sel', +n.dataset.i === i));
+  const n = document.querySelector(`.ev[data-i="${i}"]`); if (n) n.scrollIntoView({block: 'nearest'});
+  const others = M.events.filter((o, j) => j !== i && o.e > e.s && o.s < e.e).map(o => `${o.kind === 'TRUTH' ? 'TRUTH' : 'ours'} ${o.id} ${CLS[o.cls][1]}`);
+  const esc = s => String(s).replace(/[&<>]/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[ch]));
+  $('info').innerHTML = `<h3 style="color:${CLS[e.cls][0]}">${e.kind === 'TRUTH' ? 'TRUTH' : 'Detection'} ${e.id} · ${e.cls}</h3>` +
+    `<div class="meta">${e.tr.join(', ')} · ${fmtT(e.s, true)} → ${fmtT(e.e, true)} (${((e.e - e.s) / 60).toFixed(1)} min)` +
+    `${e.conf != null ? ' · confidence ' + e.conf.toFixed(2) : ''}<br>action ${esc(e.action)}${others.length ? '<br>overlaps: ' + esc(others.join('; ')) : ''}</div>` +
+    (e.ev.length ? '<ul>' + e.ev.map(s => `<li>${esc(s)}</li>`).join('') + '</ul>' : '<i>labelled episode (no evidence text)</i>');
+  dirtyBase = true; scheduleHash();
+}
+function step(d) {
+  const v = visibleEvents(); if (!v.length) return;
+  let k = v.findIndex(([, i]) => i === S.sel);
+  k = k < 0 ? (d > 0 ? 0 : v.length - 1) : (k + d + v.length) % v.length; select(v[k][1], true);
+}
+
+// ------------------------------------------------------------------ input
+function timeAtX(x) { const r = P[0] ? P[0].r : {x: ML, w: 1}; return view.t0 + (x - r.x) / r.w * (view.t1 - view.t0); }
+function bindInput() {
+  const top = $('top'), strip = $('strip');
+  top.addEventListener('wheel', e => {
+    e.preventDefault(); const r = top.getBoundingClientRect(), x = e.clientX - r.left;
+    const lines = e.deltaMode === 1 ? 16 : 1;
+    if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) pan((e.deltaX || e.deltaY) * lines / 900);
+    else zoomAt(timeAtX(x), Math.exp(e.deltaY * lines * 0.0016));
+  }, {passive: false});
+  top.addEventListener('pointerdown', e => { top.setPointerCapture(e.pointerId); S.drag = {x: e.clientX, t0: target.t0, t1: target.t1, moved: false}; top.style.cursor = 'grabbing'; });
+  top.addEventListener('pointermove', e => {
+    const r = top.getBoundingClientRect(); S.hoverX = e.clientX - r.left; S.hoverY = e.clientY - r.top;
+    if (S.drag) {
+      const dx = e.clientX - S.drag.x; if (Math.abs(dx) > 3) S.drag.moved = true;
+      if (S.drag.moved) { const sp = S.drag.t1 - S.drag.t0, dt = -dx / (P[0] ? P[0].r.w : 1) * sp; setTarget(S.drag.t0 + dt, S.drag.t1 + dt, true); }
+    }
+    dirtyTop = true;
+  });
+  top.addEventListener('pointerup', e => { S.drag = null; top.style.cursor = 'crosshair'; });
+  top.addEventListener('pointerleave', () => { S.hoverX = null; dirtyTop = true; });
+  top.addEventListener('dblclick', e => { const r = top.getBoundingClientRect(); zoomAt(timeAtX(e.clientX - r.left), 0.25); });
+  let sd = false;
+  const stripSet = e => { const r = strip.getBoundingClientRect(), t = (e.clientX - r.left - 6) / (r.width - 12) * TOTAL, sp = target.t1 - target.t0; setTarget(t - sp / 2, t + sp / 2); };
+  strip.addEventListener('pointerdown', e => { sd = true; strip.setPointerCapture(e.pointerId); stripSet(e); });
+  strip.addEventListener('pointermove', e => { if (sd) stripSet(e); });
+  strip.addEventListener('pointerup', () => sd = false);
+  strip.addEventListener('wheel', e => { e.preventDefault(); const r = strip.getBoundingClientRect(), t = (e.clientX - r.left - 6) / (r.width - 12) * TOTAL; zoomAt(t, Math.exp(e.deltaY * 0.0016)); }, {passive: false});
+  window.addEventListener('keydown', e => {
+    if (e.target.tagName === 'SELECT' || e.ctrlKey || e.metaKey) return;
+    const k = e.key;
+    if (k === 'n') step(1); else if (k === 'p') step(-1);
+    else if (k === 'ArrowRight') { pan(0.2); e.preventDefault(); } else if (k === 'ArrowLeft') { pan(-0.2); e.preventDefault(); }
+    else if (k === '+' || k === '=') zoomAt((target.t0 + target.t1) / 2, 0.6); else if (k === '-') zoomAt((target.t0 + target.t1) / 2, 1.6);
+    else if (k === '0') { S.sel = -1; setTarget(0, TOTAL); document.querySelectorAll('.ev.sel').forEach(n => n.classList.remove('sel')); }
+  });
+  window.addEventListener('resize', () => { dirtyBase = true; });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { dirtyBase = true; });
+}
+
+// ------------------------------------------------------------------ UI build + loading
+function buildUI() {
+  $('trs').innerHTML = M.tractors.map((t, i) => `<label style="color:${TC[i]};font-weight:700"><input type="checkbox" data-tr="${i}" checked>${t}</label>`).join('');
+  $('trs').querySelectorAll('input').forEach(n => n.onchange = () => { S.vis[+n.dataset.tr] = n.checked; dirtyBase = true; });
+  const opts = [['truth', 'truth lines'], ['dets', 'our detections'], ['mp', 'multipath'], ['base', 'baselines'], ['xlog', 'XTE log']];
+  $('opts').innerHTML = opts.map(([k, l]) => `<label><input type="checkbox" data-o="${k}" ${S[k] ? 'checked' : ''}>${l}</label>`).join('');
+  $('opts').querySelectorAll('input').forEach(n => n.onchange = () => { S[n.dataset.o] = n.checked; dirtyBase = true; });
+  $('spans').innerHTML = SPANS.map(([l, s]) => `<button data-s="${s}">${l}</button>`).join('') + '<button data-s="0">all</button>';
+  $('spans').querySelectorAll('button').forEach(b => b.onclick = () => {
+    const s = +b.dataset.s; if (!s) { setTarget(0, TOTAL); return; }
+    const mid = (target.t0 + target.t1) / 2; setTarget(mid - s / 2, mid + s / 2);
+  });
+  const classes = [...new Set(M.events.map(e => e.cls))];
+  $('fCls').innerHTML += classes.map(c => `<option value="${c}">${CLS[c][1]}</option>`).join('');
+  $('fCls').onchange = e => { S.cls = e.target.value; buildList(); };
+  $('fTruth').onchange = e => { S.kind.TRUTH = e.target.checked; buildList(); };
+  $('fDet').onchange = e => { S.kind.DET = e.target.checked; buildList(); };
+  $('legend').innerHTML = Object.entries(CLS).map(([k, v]) => `<span><i style="background:${v[0]}"></i>${v[1]}</span>`).join('') +
+    '<span>dashed = truth · shaded = ours · ▲ = multipath pass</span>';
+  $('info').innerHTML = `<div class="meta">${M.events.filter(e => e.kind === 'TRUTH').length} labelled dev episodes · ${M.events.filter(e => e.kind === 'DET').length} detections · ${M.mp.length} multipath passes.<br>` +
+    `Scroll = zoom at cursor · drag = pan · double-click = zoom in · drag the overview strip to navigate · pick an event on the left.</div>`;
+  buildList();
+}
+async function loadLevel(res) {
+  const buf = await (await fetch(`/lvl/${res}.bin`)).arrayBuffer(), n = TOTAL / res, a = [];
+  for (let tr = 0; tr < 3; tr++) { a.push([]); for (let ch = 0; ch < NCH; ch++) a[tr].push(new Float32Array(buf, ((tr * NCH + ch) * n) * 4, n)); }
+  LV[res] = {n, a}; dirtyBase = true;
+}
+async function init() {
+  const test = location.search.includes('test');
+  if (test) { const im = new Image(); im.src = '/ready.png'; document.body.appendChild(im); im.style.display = 'none'; }   // holds the load event
+  M = await (await fetch('/meta.json')).json();
+  EPOCH = Date.parse(M.epoch); TOTAL = M.total;
+  bindInput(); buildUI();
+  const h = new URLSearchParams(location.hash.slice(1));
+  view.t1 = target.t1 = TOTAL;
+  if (h.has('t0') && h.has('t1')) setTarget(+h.get('t0'), +h.get('t1'), true);
+  requestAnimationFrame(frame);
+  await loadLevel(60); await loadLevel(10);
+  if (h.has('ev') && +h.get('ev') >= 0) select(+h.get('ev'), !h.has('t0'));
+  $('status').textContent = 'loading 1 s data…';
+  await loadLevel(1);
+  dirtyBase = true;
+  if (location.search.includes('bench')) await bench();
+  if (test) { await new Promise(r => setTimeout(r, 400)); await fetch('/ready', {method: 'POST'}); }
+}
+
+// ------------------------------------------------------------------ benchmark (?test&bench): timings are POSTed to the server log
+async function bench() {
+  const out = [], cfgs = [['72 h', 0, 259200], ['24 h', 86400, 172800], ['6 h', 100000, 121600], ['1 h', 100000, 103600], ['10 min', 100000, 100600]];
+  for (const [name, a, b] of cfgs) {
+    setTarget(a, b, true); cssv = getComputedStyle(document.documentElement);
+    drawBase(); drawStrip(); drawMap();                                   // warm up
+    const N = 40, t = performance.now();
+    for (let i = 0; i < N; i++) { const sh = (b - a) * 0.01 * i; view.t0 = a + sh; view.t1 = b + sh; drawBase(); drawStrip(); drawMap(); }
+    const full = (performance.now() - t) / N;
+    const t2 = performance.now(); S.hoverX = 600; S.hoverY = 200; for (let i = 0; i < N; i++) drawTop(); const hov = (performance.now() - t2) / N;
+    const tm = f => { const t = performance.now(); for (let i = 0; i < 20; i++) f(); return ((performance.now() - t) / 20).toFixed(1); };
+    view.t0 = a; view.t1 = b;
+    out.push(`   parts: base ${tm(drawBase)} ms, strip ${tm(drawStrip)} ms, map ${tm(drawMap)} ms`);
+    out.push(`${name.padEnd(7)} res=${curRes}s  full redraw ${full.toFixed(1)} ms  (${(1000 / full).toFixed(0)} fps)   hover layer ${hov.toFixed(2)} ms`);
+    setTarget(a, b, true);
+  }
+  await fetch('/perf', {method: 'POST', body: out.join('\n')});
+}
+init().catch(err => { $('status').textContent = 'error: ' + err; console.error(err); });
+</script>
+</body>
+</html>

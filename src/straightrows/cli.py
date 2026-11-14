@@ -17,12 +17,20 @@ from .detect import Detector
 
 
 def _params(a):
-    return Params.from_json(a.params) if a.params and Path(a.params).exists() else Params()
+    """Defaults (config.Params) unless --params names a file. A named file that does not exist is an error, not a fallback."""
+    if not a.params:
+        print("params: built-in defaults (src/straightrows/config.py)")
+        return Params()
+    if not Path(a.params).exists():
+        sys.exit(f"params file not found: {a.params} (omit --params to use the built-in defaults)")
+    print(f"params: {a.params}")
+    return Params.from_json(a.params)
 
 
 def cmd_dev(a):
     b = load_all(a.data)
     p = _params(a)
+    p.max_detections = 10 ** 9          # dev spans 48 h: do not thin the recurring multipath reports when scoring
     res, sub, _ = score_window(b, p, (DEV_START, DEV_END), b.train)
     report(res, "development window (labeled)")
     calibration_table(res, sub)
@@ -40,7 +48,7 @@ def cmd_run(a):
     for d in sub["detections"]:
         print(f"  {d['start'][11:19]}-{d['end'][11:19]}  {d['class']:16} {','.join(d['tractors']):9} conf {d['confidence']:.2f}  {d['action']}")
     v = Path(__file__).resolve().parents[2] / "scripts/validate_submission.py"
-    subprocess.run([sys.executable, str(v), a.output])
+    sys.exit(subprocess.run([sys.executable, str(v), a.output]).returncode)
 
 
 def main():
@@ -48,7 +56,7 @@ def main():
     sp = ap.add_subparsers(required=True)
     d = sp.add_parser("dev"); d.add_argument("--data", default="data"); d.add_argument("--params"); d.add_argument("--json")
     d.set_defaults(f=cmd_dev)
-    r = sp.add_parser("run"); r.add_argument("--data", default="data"); r.add_argument("--params", default="params.json")
+    r = sp.add_parser("run"); r.add_argument("--data", default="data"); r.add_argument("--params")
     r.add_argument("--output", default="submission.json"); r.add_argument("--github-handle", required=True)
     r.add_argument("--repo-url", required=True); r.add_argument("--display-name"); r.set_defaults(f=cmd_run)
     a = ap.parse_args(); a.f(a)

@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 
 from .config import TRACTORS, Params
+from .stats import chauvenet_keep
 
 
 @dataclass
@@ -49,8 +50,12 @@ def build(tele: pd.DataFrame, p: Params) -> Features:
         b = {}
         for k in ("cn0", "mincn0", "sats", "xte"):
             v = wide[k][tr][w].dropna()
+            if p.chauvenet_baseline and len(v) > 2:
+                v = v[chauvenet_keep(v.values)]     # events must not contaminate the healthy baseline
             b[k] = float(v.median()) if len(v) else np.nan
         v = wide["xte"][tr][w].dropna()
+        if p.chauvenet_baseline and len(v) > 2:
+            v = v[chauvenet_keep(v.values)]
         b["xte_mad"] = float((v - v.median()).abs().median() * 1.4826) if len(v) else np.nan
         base[tr] = b
     dev = pd.DataFrame({tr: wide["cn0"][tr] - base[tr]["cn0"] for tr in TRACTORS})
@@ -76,7 +81,6 @@ def build(tele: pd.DataFrame, p: Params) -> Features:
             r[tr] = wide[k][tr] - ref.fillna(0.0)      # relative to neighbours: storms hit everyone, faults hit one
         rel[k] = pd.DataFrame(r)
     drop = ((rel["satsmin_dev"] <= -p.sats_drop) | (rel["mincn0_dev"] <= -p.min_cn0_dip_db)) & work
-    wide["dropout"] = drop
     wide["dropout_local"] = drop
     ex = {}
     for tr in TRACTORS:

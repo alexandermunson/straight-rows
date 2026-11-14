@@ -17,9 +17,12 @@ Legend: [x] done in prep · [ ] to do at/after kickoff (Fri Nov 13, 4:00 pm CT; 
 - [x] README skeleton satisfying rubric (setup, pinned deps, regen command, approach, labels use, failure modes, wanted data)
 
 ## Kickoff checklist (see docs/KICKOFF.md)
-- [ ] `get_data.py`, verify sha256, run `inspect_data.py`, fix loader if schema differs
-- [ ] Run `evaluate.py` on dev labels; look at every miss/FP; plot episodes
-- [ ] Calibrate thresholds; check sensitivity; avoid overfitting 12 episodes
-- [ ] Hand-review each of the 8 eval detections (class, tractors, onset, evidence)
-- [ ] Write final README, make repo public, ONE PR before 22:00Z Saturday (not early)
+- [x] `get_data.py`, verify sha256, run `inspect_data.py` (loader OK, schemas as assumed)
+- [x] Dev scoring: 40.0/40, 0 FP (in-sample; multipath = periodic headland dips; jam-in-storm; link flicker bridge)
+- [x] Calibration check: `calibrate.py --cv` never beat the defaults on the held-out day, so defaults are shipped
+- [x] Threshold stability report (`docs/STABILITY.md`) and robustness runs
+- [x] Hand-review of eval detections (7 real + per-pass multipath); least certain call is the 18:30Z jam (no RFI report)
+- [x] Evidence re-measured over the final window; real-data regression tests
+- [x] README final
+- [ ] Regenerate `submission.json` with the real handle/URL, commit, make repo public, ONE PR before 22:00Z Saturday (not early)
 - [ ] Rehearse 5-min demo + 3-min Q&A

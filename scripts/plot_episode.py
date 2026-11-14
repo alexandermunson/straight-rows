@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Demo figure for a detection or a labeled episode: signal health, XTE, sats, link, with SDA strip.
 
-    python scripts/plot_episode.py --data data --params params.json --start 2026-05-06T10:00Z --end 2026-05-06T11:00Z --out fig.png
+    python scripts/plot_episode.py --data data --start 2026-05-06T10:00Z --end 2026-05-06T11:00Z --out fig.png
 """
 import argparse, json, sys
 from pathlib import Path

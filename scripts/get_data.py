@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Download the Straight Rows dataset (released at kickoff) into starter/data/.
+"""Download the Straight Rows dataset into data/ (adapted from the organizers' starter script).
 
-python starter/scripts/get_data.py            # from the repository root
-python starter/scripts/get_data.py --zip PATH # use a ZIP you already downloaded
+python scripts/get_data.py            # from the repository root
+python scripts/get_data.py --zip PATH # use a ZIP you already downloaded
 
-Verifies the SHA-256 published in starter/DATASET_SHA256 and extracts only the
+Verifies the SHA-256 published in DATASET_SHA256 and extracts only the
 data/ folder from the official student package.
 """
 import argparse

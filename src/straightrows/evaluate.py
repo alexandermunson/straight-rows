@@ -1,6 +1,7 @@
 """Run the detector on a window and score it with the official diagnostic (copied from the organizers' repo)."""
 from __future__ import annotations
 
+import copy
 import json
 import sys
 
@@ -17,6 +18,9 @@ def run_window(bundle, p, window):
 
 
 def score_window(bundle, p, window, episodes, repo="https://github.com/x/y"):
+    if tuple(window) != (EVAL_START, EVAL_END):
+        p = copy.copy(p)
+        p.max_detections = 10 ** 9      # the 495 cap exists for the 24 h submission only; never thin multipath when scoring dev
     cands = run_window(bundle, p, window)
     sub = to_submission(cands, p, "x", repo)
     key = {"episodes": [{**e, "recommended_action": e.get("recommended_action", ACTION.get(e["class"]))} for e in episodes]}
