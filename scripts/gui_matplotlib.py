@@ -84,8 +84,13 @@ class Data:
         else:
             self._run_detector(refresh, Params)
         key = lambda e: e["start"]
-        self.events = sorted(self.truth + [d for d in self.dets if d["cls"] != "MULTIPATH"], key=key)
         self.mp_dets = [d for d in self.dets if d["cls"] == "MULTIPATH"]
+        # The hundreds of per-pass multipath reports are drawn as ticks, not listed. The ones that answer a labelled
+        # multipath episode (same machine, overlapping in time) ARE listed, so the list shows that episode as detected.
+        mp_truth = [t for t in self.truth if t["cls"] == "MULTIPATH"]
+        mp_hits = [d for d in self.mp_dets if any(set(d["tractors"]) & set(t["tractors"]) and d["start"] < t["end"] and d["end"] > t["start"]
+                                                  for t in mp_truth)]
+        self.events = sorted(self.truth + [d for d in self.dets if d["cls"] != "MULTIPATH"] + mp_hits, key=key)
 
     @staticmethod
     def _naive_ts(df):
