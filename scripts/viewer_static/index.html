@@ -15,7 +15,7 @@
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:13px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-#app{display:grid;grid-template-columns:240px minmax(0,1fr) 400px;height:100vh;gap:8px;padding:8px}
+#app{display:grid;grid-template-columns:260px minmax(0,1fr) 400px;height:100vh;gap:8px;padding:8px}
 aside,section,main{background:var(--panel);border:1px solid var(--border);border-radius:8px;min-height:0}
 aside{display:flex;flex-direction:column;padding:10px;gap:10px;overflow:hidden}
 h1{font-size:15px;margin:0}
@@ -29,16 +29,30 @@ select{font:inherit;background:var(--bg);color:var(--text);border:1px solid var(
 .ev{display:flex;gap:6px;padding:5px 7px;border-bottom:1px solid var(--grid);cursor:pointer;align-items:flex-start}
 .ev:hover{background:var(--hl)} .ev.sel{background:var(--hl);outline:2px solid var(--accent);outline-offset:-2px}
 .dot{width:10px;height:10px;border-radius:50%;margin-top:3px;flex:none}
-.ev small{color:var(--muted);display:block}
+.ev small{color:var(--muted);display:block;white-space:nowrap}
 h4.why{margin:10px 0 2px;font-size:12px} p.why{margin:0 0 4px;line-height:1.5;max-width:70ch;white-space:pre-line} details{margin-top:10px} details summary{cursor:pointer;color:var(--muted)}
-.kind{font-weight:600;font-size:10px;padding:0 4px;border-radius:3px;border:1px solid var(--border);margin-right:4px}
+aside details.layers summary{cursor:pointer;color:var(--muted);font-size:12px} aside details.layers{margin:0} aside details.layers .row{margin-top:6px}
+#spans{gap:4px} #spans button{padding:2px 7px;font-size:12px}
+#trs{gap:12px;font-weight:700}
+.evhead{display:flex;align-items:center;justify-content:space-between;margin:0} .evhead h2{margin:0}
+.ev .t{flex:1;min-width:0} .ev .t b{font-weight:700} .ev .t .m{color:var(--muted);font-size:12px;margin-left:4px}
+.ev .r{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.pill{font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px;color:#fff;white-space:nowrap}
+.lab{font-size:10px;color:var(--muted);white-space:nowrap} .lab.miss{color:#c0392b;font-weight:700}
+.ev{padding:7px 8px;align-items:center}
+#info .hd{display:flex;align-items:center;gap:8px;justify-content:space-between} #info .hd h3{margin:0;font-size:15px}
+#info .act{font-size:14px;font-weight:700;margin:6px 0 2px} #info .brief{margin:0 0 8px;color:var(--muted);line-height:1.45}
+#info .chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}
+#info details.sec{border-top:1px solid var(--grid);margin:0;padding:6px 0} #info details.sec>summary{font-weight:700;color:var(--text);font-size:12px}
+#info details.sec p{margin:5px 0 0;line-height:1.55;max-width:75ch;white-space:pre-line}
+#info details.sec.minor>summary{font-weight:400;color:var(--muted)}
 main{display:flex;flex-direction:column;padding:6px;gap:6px}
 #strip{height:64px;width:100%;display:block;border-radius:6px;cursor:ew-resize;touch-action:none}
 #plots{position:relative;flex:1;min-height:0}
 #plots canvas{position:absolute;inset:0;width:100%;height:100%}
 #top{cursor:crosshair;touch-action:none}
 section{display:flex;flex-direction:column;padding:8px;gap:8px;overflow:hidden}
-#map{width:100%;height:340px;display:block;border-radius:6px;background:var(--plotbg);border:1px solid var(--border)}
+#map{width:100%;height:300px;display:block;border-radius:6px;background:var(--plotbg);border:1px solid var(--border)}
 #info{flex:1;overflow:auto;font-size:12px}
 #info h3{margin:0 0 4px;font-size:14px}
 #info .meta{color:var(--muted);margin-bottom:6px}
@@ -81,18 +95,12 @@ details.card>summary::-webkit-details-marker{display:none}
   <aside>
     <h1>Straight Rows</h1>
     <div id="tabs"><button id="tabInv" class="on">Investigate</button><button id="tabOps">Operator actions</button></div>
-    <div><h2>Tractors</h2><div class="row" id="trs"></div></div>
-    <div><h2>Overlays</h2><div class="row" id="opts"></div></div>
-    <div><h2>Window</h2><div class="row" id="spans"></div></div>
-    <div><h2>Events</h2>
-      <div class="row">
-        <label><input type="checkbox" id="fTruth" checked>truth</label>
-        <label><input type="checkbox" id="fDet" checked>ours</label>
-        <select id="fCls"><option value="ALL">all classes</option></select>
-      </div>
-    </div>
+    <div class="row" id="trs"></div>
+    <div class="row" id="spans"></div>
+    <details class="layers"><summary>Layers on the plots</summary><div class="row" id="opts"></div></details>
+    <div class="evhead"><h2>Events</h2><select id="fCls"><option value="ALL">all causes</option></select></div>
     <div id="events"></div>
-    <div class="legend"><span><kbd>n</kbd><kbd>p</kbd> events</span><span><kbd>←</kbd><kbd>→</kbd> pan</span><span><kbd>+</kbd><kbd>-</kbd> zoom</span><span><kbd>0</kbd> all</span></div>
+    <div class="legend" id="keys"><span><kbd>n</kbd><kbd>p</kbd> next / previous event</span><span><kbd>←</kbd><kbd>→</kbd> pan</span><span><kbd>+</kbd><kbd>-</kbd> zoom</span><span><kbd>0</kbd> show all</span></div>
   </aside>
   <main>
     <canvas id="strip"></canvas>
@@ -102,9 +110,8 @@ details.card>summary::-webkit-details-marker{display:none}
   <section>
     <div class="row" id="mapbar"><button id="mapField" title="Zoom to the field">Field</button>
       <button id="mapAll" title="Zoom out to show the whole of every interference-report area and the estimated source">Whole report area</button>
-      <button id="mapOut" title="Zoom out">−</button><button id="mapIn" title="Zoom in">+</button>
-      <small style="color:var(--muted)">scroll to zoom · drag to move · double-click to reset</small></div>
-    <canvas id="map"></canvas>
+      <button id="mapOut" title="Zoom out">−</button><button id="mapIn" title="Zoom in">+</button></div>
+    <canvas id="map" title="Scroll to zoom · drag to move · double-click to reset"></canvas>
     <div class="legend" id="legend"></div>
     <div id="info"></div>
   </section>
@@ -495,8 +502,8 @@ function drawMap() {
     c.fillStyle = css('--text'); c.font = '10px system-ui'; c.textAlign = 'center'; c.textBaseline = 'bottom'; c.fillText(nice >= 1000 ? nice / 1000 + ' km' : nice + ' m', x0 + len / 2, y0 - 3);
   }
   c.fillStyle = css('--muted'); c.font = '11px system-ui'; c.textAlign = 'left'; c.textBaseline = 'top';
-  c.fillText('Field map · working samples in window' + (sel ? ` · ${sel.id} highlighted` : ''), 6, 4);
-  if (shownRfi.length && !MV.all) { c.fillStyle = '#e31a1c'; c.fillText('interference report area extends beyond this view: press “Whole report area”', 6, 18); }
+  c.fillText('Field map' + (sel ? ` · ${sel.id}` : ''), 6, 4);
+  if (shownRfi.length && !MV.all) { c.fillStyle = '#e31a1c'; c.fillText('Report area extends past this view: use Whole report area', 6, 18); }
 }
 
 // ------------------------------------------------------------------ operator tab: per-machine actions traced back to events
@@ -592,14 +599,27 @@ let hashT = 0;
 function scheduleHash() { clearTimeout(hashT); hashT = setTimeout(() => { try { history.replaceState(null, '', `#t0=${view.t0.toFixed(0)}&t1=${view.t1.toFixed(0)}&ev=${S.sel}`); } catch (e) {} }, 300); }
 
 // ------------------------------------------------------------------ events list / selection
-function visibleEvents() { return M.events.map((e, i) => [e, i]).filter(([e]) => S.kind[e.kind] && (S.cls === 'ALL' || e.cls === S.cls)); }
+function visibleEvents() {      // one row per detection; a labelled episode only gets its own row when nothing detected it
+  return M.events.map((e, i) => [e, i]).filter(([e]) => (e.kind === 'DET' || !e.matched) && (S.cls === 'ALL' || e.cls === S.cls));
+}
+function matchLabels() {        // link each detection to the labelled episode it answers (same cause, shared machine, time overlap >= 30 %)
+  const T = M.events.filter(e => e.kind === 'TRUTH');
+  for (const e of M.events) { e.label = null; e.matched = false; }
+  for (const d of M.events) if (d.kind === 'DET') for (const t of T) {
+    if (t.cls !== d.cls || !t.tr.some(x => d.tr.includes(x))) continue;
+    const inter = Math.min(d.e, t.e) - Math.max(d.s, t.s), uni = Math.max(d.e, t.e) - Math.min(d.s, t.s);
+    if (uni > 0 && inter / uni >= 0.3) { d.label = t.id; t.matched = true; t.by = d.id; break; }
+  }
+}
 function buildList() {
   const box = $('events'); box.innerHTML = '';
   for (const [e, i] of visibleEvents()) {
     const d = document.createElement('div'); d.className = 'ev' + (i === S.sel ? ' sel' : ''); d.dataset.i = i;
-    const dur = (e.e - e.s) / 60;
-    d.innerHTML = `<span class="dot" style="background:${CLS[e.cls][0]}"></span><div><span class="kind">${e.kind === 'TRUTH' ? 'TRUTH' : 'OURS'}</span><b>${e.id}</b> ${CLS[e.cls][1]} ${e.tr.join(',')}` +
-      `<small>${fmtT(e.s)} · ${dur < 1 ? (dur * 60).toFixed(0) + ' s' : dur.toFixed(0) + ' min'}${e.conf != null ? ' · conf ' + e.conf.toFixed(2) : ''}</small></div>`;
+    const dur = (e.e - e.s) / 60, col = CLS[e.cls][0], det = e.kind === 'DET';
+    d.innerHTML = `<span class="dot" style="background:${col}"></span><div class="t"><b>${CLSNAME[e.cls][0].toUpperCase() + CLSNAME[e.cls].slice(1)}</b><span class="m">${e.tr.length === 3 ? 'all machines' : e.tr.join(' ')}</span>` +
+      `<small>${det ? e.id + ' · ' : ''}${fmtT(e.s).slice(3)} · ${dur < 1 ? (dur * 60).toFixed(0) + 's' : dur >= 90 ? (dur / 60).toFixed(1) + 'h' : dur.toFixed(0) + 'm'}</small></div>` +
+      `<div class="r">${det ? `<span class="pill" style="background:${col}" title="confidence">${e.conf.toFixed(2)}</span>` : ''}` +
+      (det ? (e.label ? `<span class="lab" title="matches the labelled episode ${e.label}">✓ ${e.label}</span>` : '') : `<span class="lab miss" title="a labelled episode that nothing detected">${e.id} missed</span>`) + `</div>`;
     d.onclick = () => select(i, true); box.appendChild(d);
   }
 }
@@ -608,17 +628,27 @@ function select(i, go) {
   if (go) { const dur = e.e - e.s, sp = clamp(Math.max(dur * 4, 600), 600, TOTAL), mid = (e.s + e.e) / 2; setTarget(mid - sp / 2, mid + sp / 2); }
   document.querySelectorAll('.ev').forEach(n => n.classList.toggle('sel', +n.dataset.i === i));
   const n = document.querySelector(`.ev[data-i="${i}"]`); if (n) n.scrollIntoView({block: 'nearest'});
-  const others = M.events.filter((o, j) => j !== i && o.e > e.s && o.s < e.e).map(o => `${o.kind === 'TRUTH' ? 'TRUTH' : 'ours'} ${o.id} ${CLS[o.cls][1]}`);
+  const others = M.events.filter((o, j) => j !== i && o.e > e.s && o.s < e.e).map(o => `${o.kind === 'TRUTH' ? 'label' : 'ours'} ${o.id} (${CLSNAME[o.cls]})`);
   const esc = s => String(s).replace(/[&<>]/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[ch]));
-  $('info').innerHTML = `<h3 style="color:${CLS[e.cls][0]}">${e.kind === 'TRUTH' ? 'TRUTH' : 'Detection'} ${e.id} · ${e.cls}</h3>` +
-    `<div class="meta">${e.tr.join(', ')} · ${fmtT(e.s, true)} → ${fmtT(e.e, true)} (${((e.e - e.s) / 60).toFixed(1)} min)` +
-    `${e.conf != null ? ' · confidence ' + e.conf.toFixed(2) : ''}<br>action ${esc(e.action)}${others.length ? '<br>overlaps: ' + esc(others.join('; ')) : ''}</div>` +
-    ((e.why || []).length
-      ? (() => { const sec = ([h, t]) => `<h4 class="why">${esc(h)}</h4><p class="why">${esc(t)}</p>`, main = ([h]) => h.startsWith('Why');
-          return e.why.filter(main).map(sec).join('') +
-            `<details><summary>More detail (what was measured, the feeds, action, confidence)</summary>` + e.why.filter(x => !main(x)).map(sec).join('') + '</details>' +
-            `<details><summary>Measurements as submitted (${e.ev.length} evidence lines)</summary><ul>` + e.ev.map(s => `<li>${esc(s)}</li>`).join('') + '</ul></details>'; })()
-      : (e.ev.length ? '<ul>' + e.ev.map(s => `<li>${esc(s)}</li>`).join('') + '</ul>' : '<i>labelled episode (no evidence text)</i>'));
+  const col = CLS[e.cls][0], name = CLSNAME[e.cls][0].toUpperCase() + CLSNAME[e.cls].slice(1), det = e.kind === 'DET';
+  const sec = ([h, t], open, minor) => `<details class="sec${minor ? ' minor' : ''}" ${open ? 'open' : ''}><summary>${esc(h)}</summary><p>${esc(t)}</p></details>`;
+  let h = `<div class="hd"><h3 style="color:${col}">${det ? name : 'Labelled episode: ' + name}</h3>` + (det ? `<span class="pill" style="background:${col}">${e.conf.toFixed(2)} confidence</span>` : '') + `</div>` +
+    `<div class="meta">${e.tr.join(', ')} · ${fmtT(e.s, true)} → ${fmtT(e.e, true)} (${((e.e - e.s) / 60).toFixed(1)} min) · ${det ? 'event ' + e.id + (e.label ? ' · matches label ' + e.label : '') : e.id + (e.matched ? ' · detected as ' + e.by : ' · not detected')}` +
+    `${others.length ? '<br>overlaps ' + esc(others.join('; ')) : ''}</div>`;
+  if (det && e.ops) {
+    h += `<div class="act">${esc(e.ops.head)}</div><p class="brief">${esc(e.ops.brief)}</p>` +
+         `<div class="chips"><button id="toOps">See this in Operator actions</button></div>`;
+  } else if (det) h += `<div class="act">${esc(e.action.replace(/_/g, ' ').toLowerCase())}</div>`;
+  if ((e.why || []).length) {
+    const main = ([hd]) => hd.startsWith('Why');
+    h += e.why.filter(main).map(x => sec(x, true)).join('') +
+         `<details class="sec minor"><summary>More detail: what was measured, the feeds, action, confidence</summary>${e.why.filter(x => !main(x)).map(x => `<h4 class="why">${esc(x[0])}</h4><p class="why">${esc(x[1])}</p>`).join('')}</details>` +
+         `<details class="sec minor"><summary>Measurements as submitted (${e.ev.length} evidence lines)</summary><ul>${e.ev.map(s => `<li>${esc(s)}</li>`).join('')}</ul></details>`;
+  } else if (e.ev.length) h += `<details class="sec minor"><summary>Evidence lines (${e.ev.length})</summary><ul>${e.ev.map(s => `<li>${esc(s)}</li>`).join('')}</ul></details>`;
+  else if (!det) h += '<p class="brief">A labelled development episode. It has no evidence text of its own.</p>';
+  $('info').innerHTML = h;
+  const to = $('toOps');
+  if (to) to.onclick = () => { OPS.day = Math.min(2, Math.floor(e.s / 86400)); showTab(true); const c = document.getElementById('card-' + e.tr[0] + '-' + i); if (c) { c.open = true; c.scrollIntoView({block: 'center'}); } };
   dirtyBase = true; scheduleHash();
 }
 function step(d) {
@@ -701,15 +731,14 @@ function buildUI() {
     const s = +b.dataset.s; if (!s) { setTarget(0, TOTAL); return; }
     const mid = (target.t0 + target.t1) / 2; setTarget(mid - s / 2, mid + s / 2);
   });
+  matchLabels();
   const classes = [...new Set(M.events.map(e => e.cls))];
-  $('fCls').innerHTML += classes.map(c => `<option value="${c}">${CLS[c][1]}</option>`).join('');
+  $('fCls').innerHTML += classes.map(c => `<option value="${c}">${CLSNAME[c]}</option>`).join('');
   $('fCls').onchange = e => { S.cls = e.target.value; buildList(); };
-  $('fTruth').onchange = e => { S.kind.TRUTH = e.target.checked; buildList(); };
-  $('fDet').onchange = e => { S.kind.DET = e.target.checked; buildList(); };
   $('legend').innerHTML = Object.entries(CLS).map(([k, v]) => `<span><i style="background:${v[0]}"></i>${v[1]}</span>`).join('') +
-    '<span>dashed = truth · shaded = ours · ▲ = multipath pass</span>';
-  $('info').innerHTML = `<div class="meta">${M.events.filter(e => e.kind === 'TRUTH').length} labelled dev episodes · ${M.events.filter(e => e.kind === 'DET').length} detections · ${M.mp.length} multipath passes.<br>` +
-    `Scroll = zoom at cursor · drag = pan · double-click = zoom in · drag the overview strip to navigate · pick an event on the left.</div>`;
+    '<span>dashed = labelled · shaded = ours · ▲ = multipath pass</span>';
+  $('info').innerHTML = `<div class="meta">${M.events.filter(e => e.kind === 'DET' && e.cls !== 'MULTIPATH').length} events detected, ${M.mp.length} multipath passes. Pick an event on the left to see why it was marked.<br>` +
+    `Scroll over the plots to zoom, drag to pan, drag the strip at the top to jump around.</div>`;
   buildList();
 }
 async function loadLevel(res) {
