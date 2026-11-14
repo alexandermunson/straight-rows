@@ -277,6 +277,7 @@ def to_submission(cands, p, handle, repo_url, display_name=None, plain=False):
         })
         if plain:
             dets[-1]["reasoning"] = explain(c, p, conf, terms)
+            dets[-1]["ops"] = operator_card(c, p, conf, terms)
             sf = (c.get("ax") or {}).get("source")
             if c["cls"] == "JAMMING" and sf and not sf.get("flat") and sf["r2"] >= 0.9:
                 dets[-1]["source"] = dict(lat=sf["lat"], lon=sf["lon"], radius_m=sf["radius_m"], r2=sf["r2"])
@@ -719,3 +720,129 @@ def analysis_plain(c, p: Params):
             detail.append(f"How fast a live system would have caught it: a detector that only looks backwards in time (watching the {cu['what']}) would not have "
                           "alarmed on this event with its standard settings.")
     return why, why_not, detail
+
+
+# ---------------------------------------------------------------- operator view (viewer "Operator actions" tab)
+ACTION_HEAD = {"HALT_OR_DEGRADED_MODE": "Stop precision work or run in degraded mode", "HALT_AND_REPORT": "Stop and report interference",
+               "HALT_CROSSCHECK_AND_REPORT": "Stop, cross-check position, and report", "SERVICE_MACHINE_OTHERS_CONTINUE": "Service this machine; others continue",
+               "CONTINUE_FALSE_ALARM": "Keep working (false alarm)"}
+
+
+def operator_card(c, p: Params, conf, terms):
+    """Decision card for the operator tab: the action, what each machine showed, what the space-side feeds showed, how
+    the two connect, what is uncertain, what would change the call, and what acting (or being wrong) costs.
+    Same numbers as the evidence; plain sentences."""
+    cls, tr = c["cls"], c["tractors"]
+    if cls == "MULTIPATH":
+        return None                      # recurring reflections are summarised per machine in the tab, not carded one by one
+    a, b = c["start"], c["end"]
+    mins = (b - a).total_seconds() / 60
+    st, nb, s4, ax = c["stats"], c["neighbors"], c["s4"], c.get("ax") or {}
+    sm, sf = ax.get("storm"), ax.get("source")
+    src_ok = bool(sf and not sf.get("flat") and sf["r2"] >= 0.9)
+    rfi_hit = [r for r in c["rfi"] if r["_within"]]
+    in_storm = any(o["cls"] == "SPACE_WEATHER" for o in c.get("concurrent", []) if o["cls"] != cls)
+    quiet = s4["elevated"] is False and not (np.isfinite(c["kp_max"]) and c["kp_max"] >= p.kp_high)
+
+    def machine(t):
+        s = st[t]
+        loss = -s["cn0_dev_mean"]
+        bits = [f"signal {loss:.1f} dB below normal" if loss >= 1 else "signal strength normal"]
+        bits.append(f"full-precision fix lost {100 * s['fixbad_frac']:.0f}% of the time" if s["fixbad_frac"] >= 0.005 else "full-precision fix held")
+        bits.append(f"up to {s['xte_max']:.2f} m off its line")
+        if s["sats_min"] < s["sats_base"] - 2:
+            bits.append(f"as few as {s['sats_min']:.0f} of {s['sats_base']:.0f} satellites")
+        if s["link_frac"] < 0.995:
+            bits.append(f"correction link down {100 * (1 - s['link_frac']):.0f}% of the time")
+        return "; ".join(bits) + "."
+
+    farm = {t: machine(t) for t in tr}
+    others = [t for t in nb]
+    sda = _sda_plain(c, p)
+    unaffected = (f"{_machines(others)} showed nothing unusual and can keep working." if others and cls in ("SPOOFING", "EQUIPMENT_FAULT")
+                  else f"{_machines(others)} {'was' if len(others) == 1 else 'were'} not listed for this event." if others else "Every working machine is covered by this action.")
+    amb, change = [], []
+    if cls == "SPACE_WEATHER":
+        link = (_sda_key(c, p, cls)
+                + (f"The scintillation level predicts {sm['pred']:.1f} dB of signal loss and the machines lost {sm['obs']:.1f} dB. " if sm else "")
+                + "Every machine was hit by the same amount, which only a cause far overhead produces.")
+        if s4["elevated"] is None:
+            amb.append("No scintillation reading was available, so the call rests on Kp, the advisory and the uniform loss.")
+        else:
+            amb.append("Little. The only alternative is a distant jammer that happens to affect every machine equally; we tested for a ground "
+                       "transmitter and none fits.")
+        if any(o["cls"] == "JAMMING" for o in c.get("concurrent", [])):
+            amb.append("A jammer was also active for part of this window and is handled as its own event.")
+        change.append("An interference report placing a source nearby, or the machines starting to lose signal unequally, would point to jamming instead.")
+        cost = (f"All {len(tr)} machines lose precision guidance for {mins:.0f} minutes ({len(tr) * mins / 60:.1f} machine-hours). Degraded-mode work is "
+                "possible if metre-level accuracy is acceptable for the task.")
+        wrong = ("If this were really jamming, the machines would have been stopped anyway; what would be missed is the interference report. "
+                 "If the warning were ignored, the machines would have worked up to "
+                 f"{max(s['xte_max'] for s in st.values()):.1f} m off their lines.")
+    elif cls == "JAMMING":
+        link = (("The space-weather feeds were quiet (scintillation at its normal level, geomagnetic activity below storm level), so the sky does not explain "
+                 "the loss. " if quiet else "A storm was running, but the loss stepped far beyond what the storm accounts for. ")
+                + (f"The storm model predicts {sm['pred']:.1f} dB here; the machines lost {sm['obs']:.1f} dB. " if sm else "")
+                + (f"Interference report {rfi_hit[0].get('id', '')} was filed {rfi_hit[0]['_delay_min']:.0f} minutes after onset"
+                   + (f", {rfi_hit[0]['_dist_km']:.1f} km from the machines. " if "_dist_km" in rfi_hit[0] else ". ") if rfi_hit else "No interference report was filed for it. ")
+                + (f"The machines' own losses point to a single ground source (it explains {100 * sf['r2']:.1f}% of the pattern), about "
+                   f"{sf['field_dist_m']:.0f} m from the nearest machine track." if src_ok else ""))
+        if not rfi_hit:
+            amb.append("No interference report backs this up (reports are often late or missing), so the call rests on the machines' own data"
+                       + (" and the ground-source fit." if src_ok else "."))
+        if in_storm:
+            amb.append("A storm was running at the same time. How the loss splits between storm and jammer is an estimate"
+                       + (f" ({sm['pred']:.0f} dB storm, {sm['resid']:.0f} dB jammer)." if sm else "."))
+        weak = [t for t in tr if st[t]["fixbad_frac"] < 0.2]
+        if weak and len(weak) < len(tr):
+            amb.append(f"{_machines(weak)} {'was' if len(weak) == 1 else 'were'} only weakly affected "
+                       "(" + "; ".join("%s lost %.1f dB" % (t, -st[t]["cn0_dev_mean"]) for t in weak) + ") and mostly kept a full-precision fix. "
+                       "It is listed because it is the same emitter, but whether it must stop is a judgment call for the operator.")
+        if not amb:
+            amb.append("Little: the feeds are quiet, a report matches, and one ground source explains the losses.")
+        change.append("A rise in scintillation, or the loss becoming equal on every machine, would point to space weather. "
+                      + ("A report arriving in the next 30 minutes would confirm it." if not rfi_hit else ""))
+        cost = (f"{len(tr)} machines stop for {mins:.0f} minutes ({len(tr) * mins / 60:.1f} machine-hours) and an interference report is filed"
+                + (f" with the estimated source position ({sf['lat']:.4f}, {sf['lon']:.4f})." if src_ok else "."))
+        wrong = (f"If the machines had kept working they would have been up to {max(s['xte_max'] for s in st.values()):.1f} m off their lines with no "
+                 "reliable fix. If this were really space weather, the only cost of the wrong label is an unnecessary report; the stop is right either way.")
+    elif cls == "SPOOFING":
+        t0 = st[tr[0]]
+        link = ("No space-side feed can see spoofing directly, so their job here is to rule out the alternatives. "
+                + ("They do: scintillation and geomagnetic activity were quiet, so the drift is not ionospheric. " if quiet else
+                   "They only partly do: a storm was active or had just ended, which can also disturb position. ")
+                + ("No interference report was filed, which fits spoofing (a spoofer does not raise the noise level the way a jammer does). " if not rfi_hit else "")
+                + f"On the farm side, {_machines(tr)} drifted to {t0['xte_max']:.2f} m off line while its signal and fix stayed healthy"
+                + (f" and its neighbours stayed within {max(n['xte_max'] for n in nb.values()):.2f} m." if nb else "."))
+        amb.append("Spoofing is inferred, not observed: nothing in the data measures the false signal itself. A guidance or steering fault on this one machine "
+                   "would look similar, which is why the action is to cross-check against an independent position source before reporting.")
+        if in_storm or not quiet:
+            amb.append("A storm was active or recent, which lowers confidence.")
+        change.append("If the independent cross-check (inertial, odometry, visual) agrees with the GNSS position, it is a guidance-monitor fault, not spoofing. "
+                      "If the drift appears on several machines at once with healthy signal, it is a wider spoofing attack.")
+        cost = (f"One machine stops for {mins:.0f} minutes while its position is checked; the other machines keep working.")
+        wrong = (f"If ignored, the machine would have steered up to {t0['xte_max']:.2f} m off its line while its display showed a healthy "
+                 "full-precision fix, so the driver would have had no warning. If it turns out to be a monitor fault, the cost is one machine's downtime.")
+    elif cls == "EQUIPMENT_FAULT":
+        t0 = st[tr[0]]
+        link = (("The space-weather feeds were quiet and no interference report applies" if quiet and not rfi_hit else
+                 "The space-side feeds do not single out this machine")
+                + (f", and {_machines(others)}, working the same field under the same sky, {'was' if len(others) == 1 else 'were'} unaffected. " if others else ". ")
+                + "Anything coming from the sky or the air would have reached them too, so the cause is on this machine.")
+        if c.get("mode") == "link":
+            amb.append("The fault itself is not in doubt (the machine reports its correction link down). What is unknown is why: the radio, its antenna, "
+                       "or the data path to the base station. A base-station fault is unlikely because the other machines kept their link.")
+            wrong = (f"If ignored, the machine keeps working at reduced precision about {100 * (1 - t0['link_frac']):.0f}% of the time (up to {t0['xte_max']:.2f} m off line here).")
+        else:
+            amb.append("This is the least certain kind of call. Nothing in the data tests the hardware directly; a weak jammer very close to this one machine "
+                       "could look similar, but would also lower its average signal, which did not happen.")
+            wrong = ("If ignored, the machine keeps its fix for now but is one dropout away from losing it. If this were really a nearby jammer, "
+                     "the neighbours would show it within minutes.")
+        change.append("If a neighbour starts showing the same symptom, or an interference report arrives for this period, treat it as jamming and stop the fleet.")
+        cost = (f"Only {tr[0]} stops for service. Stopping the whole fleet instead would have cost a further {len(others) * mins / 60:.1f} machine-hours.")
+    else:
+        return None
+    return dict(head=ACTION_HEAD[ACTION[cls]], action=ACTION[cls], farm=farm, unaffected=unaffected, sda=sda, link=" ".join(link.split()),
+                ambiguity=" ".join(amb), change=" ".join(change), cost=cost, wrong=wrong, conf=_confidence_plain(conf, terms),
+                overlap=[f"{PLAIN_CLASS[o['cls']]} on {_machines(o['tractors'])}, {fmts(o['start'])} to {fmts(o['end'])}"
+                         for o in c.get("concurrent", []) if o["cls"] != cls and o["cls"] != "MULTIPATH"])

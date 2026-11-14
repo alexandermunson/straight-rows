@@ -45,6 +45,21 @@ section{display:flex;flex-direction:column;padding:8px;gap:8px;overflow:hidden}
 #info ul{margin:6px 0 0;padding-left:16px} #info li{margin:0 0 5px}
 #status{position:absolute;right:8px;top:6px;font-size:11px;color:var(--muted);background:var(--panel);padding:1px 6px;border-radius:10px;border:1px solid var(--border);z-index:5}
 kbd{background:var(--bg);border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;padding:0 4px;font-size:11px}
+#tabs{display:flex;gap:6px} #tabs button{flex:1;padding:5px 6px;font-weight:600}
+#ops{display:none;grid-column:2 / -1;background:var(--panel);border:1px solid var(--border);border-radius:8px;min-height:0;overflow:auto;padding:14px 16px}
+body.ops main, body.ops section{display:none} body.ops #ops{display:block}
+#ops h2{font-size:16px;text-transform:none;letter-spacing:0;color:var(--text);margin:0 0 4px}
+#ops .lead{color:var(--muted);max-width:110ch;margin:0 0 10px;line-height:1.5}
+#ops .cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start}
+#ops .col>h3{margin:0 0 2px;font-size:15px} #ops .sum{color:var(--muted);font-size:12px;margin:0 0 8px;line-height:1.5}
+.card{border:1px solid var(--border);border-left-width:5px;border-radius:6px;padding:9px 10px;margin:0 0 10px;background:var(--bg)}
+.card .when{font-size:11px;color:var(--muted)} .card .act{font-size:14px;font-weight:700;margin:1px 0 1px}
+.card .cause{font-size:12px;margin:0 0 6px} .card h5{margin:8px 0 1px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.card p{margin:0;line-height:1.5} .card .bar{height:6px;border-radius:3px;background:var(--grid);margin:3px 0 2px;overflow:hidden} .card .bar i{display:block;height:100%}
+.card details{margin-top:6px} .card details summary{cursor:pointer;color:var(--muted)} .card button{margin-top:8px}
+.ok{border:1px dashed var(--border);border-radius:6px;padding:6px 10px;margin:0 0 10px;color:var(--muted);font-size:12px}
+#ops table{border-collapse:collapse;margin:4px 0 4px} #ops td,#ops th{border:1px solid var(--border);padding:3px 9px;text-align:left;font-size:12px}
+#ops .box{border:1px solid var(--border);border-radius:6px;padding:9px 12px;margin:0 0 14px;max-width:110ch;line-height:1.5}
 .legend{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:11px;color:var(--muted)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 </style>
@@ -53,6 +68,7 @@ kbd{background:var(--bg);border:1px solid var(--border);border-bottom-width:2px;
 <div id="app">
   <aside>
     <h1>Straight Rows</h1>
+    <div id="tabs"><button id="tabInv" class="on">Investigate</button><button id="tabOps">Operator actions</button></div>
     <div><h2>Tractors</h2><div class="row" id="trs"></div></div>
     <div><h2>Overlays</h2><div class="row" id="opts"></div></div>
     <div><h2>Window</h2><div class="row" id="spans"></div></div>
@@ -70,6 +86,7 @@ kbd{background:var(--bg);border:1px solid var(--border);border-bottom-width:2px;
     <canvas id="strip"></canvas>
     <div id="plots"><canvas id="base"></canvas><canvas id="top"></canvas><div id="status">loading…</div></div>
   </main>
+  <div id="ops"></div>
   <section>
     <div class="row" id="mapbar"><button id="mapField" title="Zoom to the field">Field</button>
       <button id="mapAll" title="Zoom out to show the whole of every interference-report area and the estimated source">Whole report area</button>
@@ -470,6 +487,75 @@ function drawMap() {
   if (shownRfi.length && !MV.all) { c.fillStyle = '#e31a1c'; c.fillText('interference report area extends beyond this view: press “Whole report area”', 6, 18); }
 }
 
+// ------------------------------------------------------------------ operator tab: per-machine actions traced back to events
+const OPS = {day: 2};                                // which 24 h block (0, 1 = labelled days, 2 = evaluation day)
+const CLSNAME = {SPACE_WEATHER: 'space weather', JAMMING: 'jamming', SPOOFING: 'spoofing', EQUIPMENT_FAULT: 'equipment fault', MULTIPATH: 'multipath'};
+function showTab(ops) {
+  document.body.classList.toggle('ops', ops); $('tabOps').classList.toggle('on', ops); $('tabInv').classList.toggle('on', !ops);
+  if (ops) renderOps(); else dirtyBase = true;
+}
+function renderOps() {
+  if (!M) return;
+  const esc = s => String(s).replace(/[&<>]/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[ch]));
+  const d0 = OPS.day * 86400, d1 = d0 + 86400, hm = t => fmtT(t, true).slice(-9, -4) + 'Z';
+  const evs = M.events.map((e, i) => [e, i]).filter(([e]) => e.kind === 'DET' && e.ops && e.s < d1 && e.e > d0);
+  const confWord = c => c >= 0.85 ? 'high' : c >= 0.7 ? 'fairly high' : c >= 0.5 ? 'moderate' : 'low';
+  const dayName = ['Day 1 (05-04, labelled)', 'Day 2 (05-05, labelled)', 'Day 3 (05-06, evaluation)'];
+  let h = `<h2>Operator actions by machine</h2>
+    <p class="lead">For each machine: what to do, when, and why, in time order. Every card traces back to one detected event; an event that
+    affects several machines appears in each of their columns with the same event number. “Show in plots” opens the event in the Investigate tab.</p>
+    <div class="row" style="margin-bottom:10px">` + dayName.map((n, i) => `<button class="${i === OPS.day ? 'on' : ''}" data-day="${i}">${n}</button>`).join('') + `</div>`;
+  // confidence vs outcome
+  const cal = M.calib || [], tot = cal.reduce((a, r) => a + r.n, 0), ok = cal.reduce((a, r) => a + r.right, 0);
+  h += `<div class="box"><b>How far to trust the confidence figures.</b> On the two labelled days, ${ok} of ${tot} listed detections matched a labelled episode of the same cause:
+    <table><tr><th>Stated confidence</th><th>Detections</th><th>Correct</th></tr>` +
+    cal.map(r => `<tr><td>${r.band}</td><td>${r.n}</td><td>${r.n ? r.right + ' of ' + r.n : 'none'}</td></tr>`).join('') + `</table>
+    Every band was right every time, so the figures are, if anything, cautious. With only ${tot} labelled cases this cannot show that “0.80” means 80%;
+    read the figure as a ranking of how much supporting evidence a call has. The rules were also developed on these same labelled days, so this is not an independent test.
+    Confidence is capped at 0.90 for that reason.</div>`;
+  h += '<div class="cols">';
+  M.tractors.forEach((tr, ti) => {
+    const mine = evs.filter(([e]) => e.tr.includes(tr)).sort((a, b) => a[0].s - b[0].s);
+    const mins = {}; let stopped = 0;
+    for (const [e] of mine) { const m = (Math.min(e.e, d1) - Math.max(e.s, d0)) / 60; mins[e.ops.head] = (mins[e.ops.head] || 0) + m; }
+    // minutes under at least one stop/service action (overlapping events counted once)
+    const iv = mine.map(([e]) => [Math.max(e.s, d0), Math.min(e.e, d1)]).sort((a, b) => a[0] - b[0]); let end = -1;
+    for (const [a, b] of iv) { if (b > end) { stopped += (b - Math.max(a, end)) / 60; end = b; } }
+    const nmp = M.mp.filter(([t, s]) => t === ti && s >= d0 && s < d1).length;
+    h += `<div class="col"><h3 style="color:${TC[ti]}">${tr}</h3><p class="sum">${mine.length} action${mine.length === 1 ? '' : 's'} this day; ` +
+      `${stopped.toFixed(0)} minutes not doing normal precision work` +
+      (Object.keys(mins).length ? ' (' + Object.entries(mins).map(([k, v]) => `${k.toLowerCase()}: ${v.toFixed(0)} min`).join('; ') + ')' : '') + '.</p>';
+    if (!mine.length) h += '<div class="ok">No action needed on this machine this day.</div>';
+    for (const [e, i] of mine) {
+      const o = e.ops, col = CLS[e.cls][0];
+      h += `<div class="card" style="border-left-color:${col}">
+        <div class="when">${hm(e.s)} to ${hm(e.e)} · ${((e.e - e.s) / 60).toFixed(0)} min · event ${esc(e.id)}${e.tr.length > 1 ? ' (shared with ' + e.tr.filter(x => x !== tr).join(', ') + ')' : ''}</div>
+        <div class="act">${esc(o.head)}</div>
+        <div class="cause">Cause: <b style="color:${col}">${CLSNAME[e.cls]}</b> · confidence ${e.conf.toFixed(2)} (${confWord(e.conf)})</div>
+        <div class="bar"><i style="width:${(e.conf * 100).toFixed(0)}%;background:${col}"></i></div>
+        <h5>What ${tr} showed</h5><p>${esc(o.farm[tr] || '')}</p>
+        <h5>How the field and the space-side feeds connect</h5><p>${esc(o.link)}</p>
+        <h5>What is uncertain</h5><p>${esc(o.ambiguity)}</p>
+        <h5>What would change this call</h5><p>${esc(o.change)}</p>
+        <h5>What the action costs</h5><p>${esc(o.cost)}</p>
+        <h5>What happens otherwise</h5><p>${esc(o.wrong)}</p>` +
+        (o.overlap.length ? `<h5>Running at the same time</h5><p>${esc(o.overlap.join('; '))}. Each has its own action; follow the stricter one.</p>` : '') +
+        `<details><summary>Other machines, full feed readings, confidence tally</summary>
+          <h5>Other machines</h5><p>${esc(o.unaffected)}</p>
+          <h5>Space-weather and interference feeds</h5><p>${esc(o.sda)}</p>
+          <h5>How the confidence was reached</h5><p>${esc(o.conf)}</p></details>
+        <button data-ev="${i}">Show in plots</button></div>`;
+    }
+    if (nmp) h += `<div class="ok"><b>Keep working:</b> ${nmp} brief signal reflections at the headland this day (about 17 seconds each, same spot every pass). ` +
+      `These are harmless false alarms and need no action; they are the grey triangles in the Investigate tab.</div>`;
+    h += '</div>';
+  });
+  h += '</div>';
+  const el = $('ops'); el.innerHTML = h;
+  el.querySelectorAll('button[data-day]').forEach(b => b.onclick = () => { OPS.day = +b.dataset.day; renderOps(); });
+  el.querySelectorAll('button[data-ev]').forEach(b => b.onclick = () => { showTab(false); select(+b.dataset.ev, true); });
+}
+
 // ------------------------------------------------------------------ frame loop (draws only when something changed)
 function frame(ts) {
   const dt = Math.min(0.1, (ts - lastFrame) / 1000 || 0.016); lastFrame = ts;
@@ -587,6 +673,7 @@ function bindInput() {
     $('mapIn').onclick = () => zoomMap(1.5); $('mapOut').onclick = () => zoomMap(1 / 1.5);
     $('mapField').classList.add('on');
   }
+  $('tabInv').onclick = () => showTab(false); $('tabOps').onclick = () => showTab(true);
   window.addEventListener('resize', () => { dirtyBase = true; });
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { dirtyBase = true; });
 }
@@ -630,6 +717,7 @@ async function init() {
   if (h.has('t0') && h.has('t1')) setTarget(+h.get('t0'), +h.get('t1'), true);
   requestAnimationFrame(frame);
   await loadLevel(60); await loadLevel(10);
+  if (h.get('tab') === 'ops') { if (h.has('day')) OPS.day = +h.get('day'); showTab(true); }
   if (h.get('map') === 'all') $('mapAll').click();
   if (h.has('ev') && +h.get('ev') >= 0) select(+h.get('ev'), !h.has('t0'));
   $('status').textContent = 'loading 1 s data…';

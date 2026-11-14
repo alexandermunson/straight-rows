@@ -61,7 +61,25 @@ def build_meta(d: Data) -> dict:
     for e in d.events:
         events.append(dict(kind=e["kind"], id=e["id"], cls=e["cls"], tr=e["tractors"], s=sec(e["start"]), e=sec(e["end"]),
                            conf=e["conf"], action=e.get("action", ""), ev=e["evidence"],
-                           why=[list(x) for x in e.get("reasoning", [])], src=e.get("source")))
+                           why=[list(x) for x in e.get("reasoning", [])], src=e.get("source"), ops=e.get("ops")))
+    # confidence vs outcome on the labelled days: a detection is right when a labelled episode of the same class overlaps it
+    # (time IoU >= 0.30, tractor IoU >= 0.50, the scorer's matching thresholds)
+    def right(dv):
+        for tv in d.truth:
+            if tv["cls"] != dv["cls"]:
+                continue
+            inter = (min(dv["end"], tv["end"]) - max(dv["start"], tv["start"])).total_seconds()
+            union = (max(dv["end"], tv["end"]) - min(dv["start"], tv["start"])).total_seconds()
+            ts_, ds_ = set(tv["tractors"]), set(dv["tractors"])
+            if union > 0 and inter / union >= 0.30 and len(ts_ & ds_) / len(ts_ | ds_) >= 0.50:
+                return True
+        return False
+    dev_end = max((tv["end"] for tv in d.truth), default=ep)
+    bands, calib = [(0.0, 0.5, "below 0.50"), (0.5, 0.7, "0.50 to 0.69"), (0.7, 0.85, "0.70 to 0.84"), (0.85, 1.01, "0.85 and above")], []
+    scored = [dv for dv in d.events if dv["kind"] == "DET" and dv["start"] < dev_end + pd.Timedelta(hours=2)]
+    for lo, hi, name in bands:
+        rows = [dv for dv in scored if lo <= dv["conf"] < hi]
+        calib.append(dict(band=name, n=len(rows), right=sum(right(dv) for dv in rows)))
     series = lambda df, col: [[sec(t), float(v)] for t, v in zip(df["ts"], df[col])]
     fl = lambda x: float(x) if x is not None and np.isfinite(x) else None
     rfi = []
@@ -80,7 +98,7 @@ def build_meta(d: Data) -> dict:
         mp=[[TRACTORS.index(tr), sec(s), sec(e)] for tr, s, e in d.mp], mp_lat=(None if d.mp_lat is None else d.mp_lat),
         kp=series(d.kp, "kp"), s4=series(d.s4, "s4"),
         dst=([[sec(t), float(v)] for t, v in zip(dst["ts"], dst["dst"])] if len(dst) else []),
-        rfi=rfi, adv=adv, base=d.base,
+        rfi=rfi, adv=adv, base=d.base, calib=calib,
         field=dict(lat=[float(allg.lat.min()), float(allg.lat.max())], lon=[float(allg.lon.min()), float(allg.lon.max())]),
         fix_names=[k for k, _ in sorted(FIX_RANK.items(), key=lambda kv: kv[1])],
     )
