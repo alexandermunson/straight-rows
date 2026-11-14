@@ -29,52 +29,78 @@
     --c-sw:#A884D8; --c-jam:#FF6B6B; --c-spoof:#FF9F43; --c-equip:#C9A35A; --c-mp:#9AA0A6; }
 }
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:13px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-#app{display:grid;grid-template-columns:260px minmax(0,1fr) 400px;height:100vh;gap:8px;padding:8px}
-aside,section,main{background:var(--panel);border:1px solid var(--border);border-radius:8px;min-height:0}
-aside{display:flex;flex-direction:column;padding:10px;gap:10px;overflow:hidden}
-h1{font-size:15px;margin:0}
-h2{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 4px}
-.row{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
-label{display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
-button{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:3px 8px;cursor:pointer}
-button:hover{border-color:var(--accent)} button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
-select{font:inherit;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:2px 4px}
-#events{flex:1;overflow:auto;border:1px solid var(--border);border-radius:6px}
-.ev{display:flex;gap:6px;padding:5px 7px;border-bottom:1px solid var(--grid);cursor:pointer;align-items:flex-start}
-.ev:hover{background:var(--hl)} .ev.sel{background:var(--hl);outline:2px solid var(--accent);outline-offset:-2px}
-.dot{width:10px;height:10px;border-radius:50%;margin-top:3px;flex:none}
-.ev small{color:var(--muted);display:block;white-space:nowrap}
-h4.why{margin:10px 0 2px;font-size:12px} p.why{margin:0 0 4px;line-height:1.5;max-width:70ch;white-space:pre-line} details{margin-top:10px} details summary{cursor:pointer;color:var(--muted)}
-aside details.layers summary{cursor:pointer;color:var(--muted);font-size:12px} aside details.layers{margin:0} aside details.layers .row{margin-top:6px}
-#spans{gap:4px} #spans button{padding:2px 7px;font-size:12px}
-#trs{gap:12px;font-weight:700}
-.evhead{display:flex;align-items:center;justify-content:space-between;margin:0} .evhead h2{margin:0}
-.ev .t{flex:1;min-width:0} .ev .t b{font-weight:700} .ev .t .m{color:var(--muted);font-size:12px;margin-left:4px}
-.ev .r{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
-.pill{font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px;color:#fff;white-space:nowrap}
-.lab{font-size:10px;color:var(--muted);white-space:nowrap} .lab.miss{color:var(--warn);font-weight:700}
-.ev{padding:7px 8px;align-items:center}
-#info .hd{display:flex;align-items:center;gap:8px;justify-content:space-between} #info .hd h3{margin:0;font-size:15px}
-#info .act{font-size:14px;font-weight:700;margin:6px 0 2px} #info .brief{margin:0 0 8px;color:var(--muted);line-height:1.45}
-#info .chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}
-#info details.sec{border-top:1px solid var(--grid);margin:0;padding:6px 0} #info details.sec>summary{font-weight:700;color:var(--text);font-size:12px}
-#info details.sec p{margin:5px 0 0;line-height:1.55;max-width:75ch;white-space:pre-line}
-#info details.sec.minor>summary{font-weight:400;color:var(--muted)}
-main{display:flex;flex-direction:column;padding:6px;gap:6px}
-#strip{height:64px;width:100%;display:block;border-radius:6px;cursor:ew-resize;touch-action:none}
-#plots{position:relative;flex:1;min-height:0}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:13px/1.45 var(--sans);-webkit-font-smoothing:antialiased}
+/* one continuous surface; columns separated by hairlines, no cards */
+#app{display:grid;grid-template-columns:clamp(272px,19vw,296px) minmax(0,1fr) clamp(340px,24vw,384px);height:100vh}
+aside{display:flex;flex-direction:column;gap:16px;padding:16px 16px 12px;border-right:1px solid var(--line);min-height:0;overflow:hidden}
+main{display:flex;flex-direction:column;gap:8px;padding:12px 12px 8px;min-height:0}
+section{display:flex;flex-direction:column;gap:12px;padding:16px;border-left:1px solid var(--line);min-height:0;overflow:hidden}
+h1{font-size:15px;font-weight:600;margin:0}
+h2{font-size:11px;font-weight:600;color:var(--ink-3);margin:0}
+.row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+label{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
+input[type=checkbox]{accent-color:var(--ink);margin:0;width:13px;height:13px}
+button{font:inherit;font-size:12px;color:var(--ink);background:transparent;border:1px solid var(--line-2);border-radius:4px;height:24px;padding:0 8px;cursor:pointer;white-space:nowrap}
+button:hover{background:var(--hover)}
+button.on,button.on:hover{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+select{font:inherit;font-size:12px;height:24px;background:transparent;color:var(--ink);border:1px solid var(--line-2);border-radius:4px;padding:0 4px}
+.seg{display:inline-flex} .seg>button{border-radius:0;margin-left:-1px} .seg>button:first-child{border-radius:4px 0 0 4px;margin-left:0}
+.seg>button:last-child{border-radius:0 4px 4px 0} .seg>button.on{position:relative}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.sw{display:inline-block;width:12px;height:3px;border-radius:2px;flex:none}
+.cs{display:inline-block;width:8px;height:8px;border-radius:2px;flex:none}
+/* folds: the same chevron everywhere; default open/closed states are set where each fold is built */
+details>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px}
+details>summary::-webkit-details-marker{display:none}
+details>summary::before{content:"";flex:none;width:5px;height:5px;margin:0 3px 0 1px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform .12s ease;opacity:.75}
+details[open]>summary::before{transform:rotate(45deg)}
+aside details.layers>summary{color:var(--ink-2);font-size:12px}
+aside details.layers .row{margin:8px 0 0 15px;flex-direction:column;align-items:flex-start;gap:6px}
+#trs{gap:16px}
+#spans{display:grid;grid-template-columns:repeat(4,1fr);gap:4px} #spans button{padding:0}
+.evhead{display:flex;align-items:center;justify-content:space-between}
+#events{flex:1;overflow:auto;margin:-8px -16px 0;border-bottom:1px solid var(--line)}
+.ev{display:flex;gap:8px;align-items:center;padding:7px 16px;border-top:1px solid var(--line);cursor:pointer}
+.ev:hover{background:var(--hover)}
+.ev.sel{background:var(--sel);box-shadow:inset 2px 0 0 var(--ink)}
+.ev:focus-visible{outline-offset:-2px}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.ev .t{flex:1;min-width:0} .ev .l1,.ev .l2{display:flex;align-items:baseline;gap:6px;min-width:0}
+.ev .l1 b{font-weight:600;white-space:nowrap} .ev .l1 .m{color:var(--ink-3);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev .l1 .lab,.ev .l2 .pill{margin-left:auto;flex:none}
+.ev small{color:var(--ink-3);font:11px/1.45 var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* confidence chip: the only badge in the interface */
+.pill{display:inline-block;font:11px/16px var(--mono);font-variant-numeric:tabular-nums;color:var(--ink-2);border:1px solid var(--line-2);border-radius:3px;padding:0 4px;white-space:nowrap}
+.lab{font:11px/1.4 var(--mono);color:var(--ink-3);white-space:nowrap} .lab.miss{color:var(--warn);font-weight:600}
+.empty{color:var(--ink-3);padding:12px 16px;margin:0;line-height:1.5}
+kbd{font:11px var(--mono);color:var(--ink-2);border:1px solid var(--line-2);border-radius:3px;padding:0 3px;margin-right:2px}
+#strip{height:56px;width:100%;display:block;cursor:ew-resize;touch-action:none}
+#plots{position:relative;flex:1;min-height:0;border-top:1px solid var(--line)}
 #plots canvas{position:absolute;inset:0;width:100%;height:100%}
 #top{cursor:crosshair;touch-action:none}
-section{display:flex;flex-direction:column;padding:8px;gap:8px;overflow:hidden}
-#map{width:100%;height:300px;display:block;border-radius:6px;background:var(--plotbg);border:1px solid var(--border)}
-#info{flex:1;overflow:auto;font-size:12px}
-#info h3{margin:0 0 4px;font-size:14px}
-#info .meta{color:var(--muted);margin-bottom:6px}
-#info ul{margin:6px 0 0;padding-left:16px} #info li{margin:0 0 5px}
-#status{position:absolute;right:8px;top:6px;font-size:11px;color:var(--muted);background:var(--panel);padding:1px 6px;border-radius:10px;border:1px solid var(--border);z-index:5}
-kbd{background:var(--bg);border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;padding:0 4px;font-size:11px}
-#tabs{display:flex;flex-wrap:wrap;gap:6px} #tabs button{flex:1 1 auto;padding:5px 6px;font-weight:600}
+#status{position:absolute;right:8px;top:6px;z-index:5;font:11px/16px var(--mono);font-variant-numeric:tabular-nums;color:var(--ink-3);background:var(--bg);border:1px solid var(--line);border-radius:3px;padding:0 6px}
+#mapbar{display:flex;gap:8px;align-items:center}
+#map{width:100%;height:300px;display:block;background:var(--bg);border:1px solid var(--line)}
+#info{flex:1;overflow:auto;font-size:13px;margin:0 -16px;padding:0 16px}
+#info .hd{display:flex;align-items:center;gap:8px}
+#info .hd h3{flex:1;margin:0;font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+#info .meta{color:var(--ink-3);font-size:12px;line-height:1.6;font-variant-numeric:tabular-nums;margin:4px 0 12px}
+.mono{font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums}
+#info .act{font-weight:600;margin:0 0 2px}
+#info .brief{margin:0 0 12px;color:var(--ink-2);line-height:1.5}
+#info .chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+#info .note{color:var(--ink-2);border-left:2px solid var(--line-2);padding:2px 0 2px 10px;margin:0 0 12px;line-height:1.5}
+#info details.sec{border-top:1px solid var(--line);padding:8px 0;margin:0}
+#info details.sec>summary{font-weight:600}
+#info details.sec.minor>summary{font-weight:400;color:var(--ink-2)}
+#info details.sec p{margin:6px 0 2px 15px;line-height:1.55;max-width:72ch;white-space:pre-line}
+h4.why{margin:12px 0 2px 15px;font-size:13px;font-weight:600} p.why{margin:0 0 4px 15px;line-height:1.55;max-width:72ch;white-space:pre-line}
+#info ul{margin:8px 0 4px 15px;padding-left:16px;color:var(--ink-2)} #info li{margin:0 0 6px;line-height:1.5}
+#info .empty{padding:0}
+/* tabs: a short vertical list; the active one carries the ink bar, like a selected event */
+#tabs{display:flex;flex-direction:column;margin:0 -16px}
+#tabs button{border:0;border-radius:0;height:28px;text-align:left;padding:0 16px;font-size:13px;color:var(--ink-2)}
+#tabs button.on,#tabs button.on:hover{background:var(--sel);color:var(--ink);font-weight:600;box-shadow:inset 2px 0 0 var(--ink)}
 #ops,#spec{display:none;grid-column:2 / -1;background:var(--panel);border:1px solid var(--border);border-radius:8px;min-height:0;overflow:auto;padding:18px 22px}
 body.ops main, body.ops section, body.spec main, body.spec section{display:none} body.ops #ops, body.spec #spec{display:block}
 body.ops aside>*:not(h1):not(#tabs), body.spec aside>*:not(h1):not(#tabs){display:none} body.ops #app, body.spec #app{grid-template-columns:180px minmax(0,1fr) 0}
@@ -108,8 +134,8 @@ details.card>summary::-webkit-details-marker{display:none}
 #spec table{border-collapse:collapse;margin:10px 0} #spec td,#spec th{border:1px solid var(--border);padding:3px 9px;text-align:left;font-size:12px}
 #spec details.trust{margin:0 0 8px;font-size:12px;color:var(--muted)} #spec details.trust summary{cursor:pointer} #spec details.trust div{max-width:100ch;line-height:1.5;margin-top:6px;color:var(--text)}
 #spec .key{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin:8px 0 0} #spec .key i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
-.legend{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:11px;color:var(--muted)}
-.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--ink-3);align-items:center}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
 </style>
 </head>
 <body>
@@ -131,9 +157,8 @@ details.card>summary::-webkit-details-marker{display:none}
   <div id="ops"></div>
   <div id="spec"></div>
   <section>
-    <div class="row" id="mapbar"><button id="mapField" title="Zoom to the field">Field</button>
-      <button id="mapAll" title="Zoom out to show the whole of every interference-report area and the estimated source">Whole report area</button>
-      <button id="mapOut" title="Zoom out">−</button><button id="mapIn" title="Zoom in">+</button></div>
+    <div id="mapbar"><span class="seg"><button id="mapField" title="Zoom to the field">Field</button><button id="mapAll" title="Zoom out to show the whole of every interference-report area and the estimated source">Whole report area</button></span>
+      <span class="seg"><button id="mapOut" title="Zoom out" aria-label="Zoom the map out">−</button><button id="mapIn" title="Zoom in" aria-label="Zoom the map in">+</button></span></div>
     <canvas id="map" title="Scroll to zoom · drag to move · double-click to reset"></canvas>
     <div class="legend" id="legend"></div>
     <div id="info"></div>
@@ -650,11 +675,11 @@ function buildList() {
   const box = $('events'); box.innerHTML = '';
   for (const [e, i] of visibleEvents()) {
     const d = document.createElement('div'); d.className = 'ev' + (i === S.sel ? ' sel' : ''); d.dataset.i = i;
-    const dur = (e.e - e.s) / 60, col = CLS[e.cls][0], det = e.kind === 'DET';
-    d.innerHTML = `<span class="dot" style="background:${col}"></span><div class="t"><b>${CLSNAME[e.cls][0].toUpperCase() + CLSNAME[e.cls].slice(1)}</b><span class="m">${e.tr.length === 3 ? 'all machines' : e.tr.join(' ')}</span>` +
-      `<small>${det ? e.id + ' · ' : ''}${fmtT(e.s).slice(3)} · ${dur < 1 ? (dur * 60).toFixed(0) + 's' : dur >= 90 ? (dur / 60).toFixed(1) + 'h' : dur.toFixed(0) + 'm'}</small></div>` +
-      `<div class="r">${det ? `<span class="pill" style="background:${col}" title="confidence">${e.conf.toFixed(2)}</span>` : ''}` +
-      (det ? (e.label ? `<span class="lab" title="matches the labelled episode ${e.label}">✓ ${e.label}</span>` : '') : `<span class="lab miss" title="a labelled episode that nothing detected">${e.id} missed</span>`) + `</div>`;
+    const dur = (e.e - e.s) / 60, det = e.kind === 'DET';
+    d.innerHTML = `<span class="dot" style="background:${cvar(e.cls)}"></span><div class="t"><div class="l1"><b>${CLSNAME[e.cls][0].toUpperCase() + CLSNAME[e.cls].slice(1)}</b><span class="m" title="${e.tr.join(', ')}">${e.tr.length === 3 ? 'all machines' : e.tr.join(' ')}</span>` +
+      (det ? (e.label ? `<span class="lab" title="matches the labelled episode ${e.label}">✓ ${e.label}</span>` : '') : `<span class="lab miss" title="a labelled episode that nothing detected">${e.id} missed</span>`) + `</div>` +
+      `<div class="l2"><small>${det ? e.id + ' · ' : ''}${fmtT(e.s).slice(3)} · ${dur < 1 ? (dur * 60).toFixed(0) + 's' : dur >= 90 ? (dur / 60).toFixed(1) + 'h' : dur.toFixed(0) + 'm'}</small>` +
+      (det ? `<span class="pill" title="confidence">${e.conf.toFixed(2)}</span>` : '') + `</div></div>`;
     d.onclick = () => select(i, true); box.appendChild(d);
   }
 }
@@ -665,10 +690,10 @@ function select(i, go) {
   const n = document.querySelector(`.ev[data-i="${i}"]`); if (n) n.scrollIntoView({block: 'nearest'});
   const others = M.events.filter((o, j) => j !== i && o.e > e.s && o.s < e.e).map(o => `${o.kind === 'TRUTH' ? 'label' : 'ours'} ${o.id} (${CLSNAME[o.cls]})`);
   const esc = s => String(s).replace(/[&<>]/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[ch]));
-  const col = CLS[e.cls][0], name = CLSNAME[e.cls][0].toUpperCase() + CLSNAME[e.cls].slice(1), det = e.kind === 'DET';
+  const name = CLSNAME[e.cls][0].toUpperCase() + CLSNAME[e.cls].slice(1), det = e.kind === 'DET';
   const sec = ([h, t], open, minor) => `<details class="sec${minor ? ' minor' : ''}" ${open ? 'open' : ''}><summary>${esc(h)}</summary><p>${esc(t)}</p></details>`;
-  let h = `<div class="hd"><h3 style="color:${col}">${det ? name : 'Labelled episode: ' + name}</h3>` + (det ? `<span class="pill" style="background:${col}">${e.conf.toFixed(2)} confidence</span>` : '') + `</div>` +
-    `<div class="meta">${e.tr.join(', ')} · ${fmtT(e.s, true)} → ${fmtT(e.e, true)} (${((e.e - e.s) / 60).toFixed(1)} min) · ${det ? 'event ' + e.id + (e.label ? ' · matches label ' + e.label : '') : e.id + (e.matched ? ' · detected as ' + e.by : ' · not detected')}` +
+  let h = `<div class="hd"><h3><i class="cs" style="background:${cvar(e.cls)}"></i>${det ? name : 'Labelled episode: ' + name}</h3>` + (det ? `<span class="pill" title="confidence">${e.conf.toFixed(2)} confidence</span>` : '') + `</div>` +
+    `<div class="meta">${e.tr.join(', ')} · <span class="mono">${fmtT(e.s, true)} → ${fmtT(e.e, true)}</span> (${((e.e - e.s) / 60).toFixed(1)} min) · ${det ? 'event ' + e.id + (e.label ? ' · matches label ' + e.label : '') : e.id + (e.matched ? ' · detected as ' + e.by : ' · not detected')}` +
     `${others.length ? '<br>overlaps ' + esc(others.join('; ')) : ''}</div>`;
   if (det && e.ops) {
     h += `<div class="act">${esc(e.ops.head)}</div><p class="brief">${esc(e.ops.brief)}</p>` +
@@ -920,7 +945,7 @@ function drawSpec() {
 
 // ------------------------------------------------------------------ UI build + loading
 function buildUI() {
-  $('trs').innerHTML = M.tractors.map((t, i) => `<label style="color:${TC[i]};font-weight:700"><input type="checkbox" data-tr="${i}" checked>${t}</label>`).join('');
+  $('trs').innerHTML = M.tractors.map((t, i) => `<label><input type="checkbox" data-tr="${i}" checked><i class="sw" style="background:${tvar(i)}"></i>${t}</label>`).join('');
   $('trs').querySelectorAll('input').forEach(n => n.onchange = () => { S.vis[+n.dataset.tr] = n.checked; dirtyBase = true; });
   const opts = [['truth', 'truth lines'], ['dets', 'our detections'], ['mp', 'multipath'], ['base', 'baselines'], ['xlog', 'XTE log']];
   $('opts').innerHTML = opts.map(([k, l]) => `<label><input type="checkbox" data-o="${k}" ${S[k] ? 'checked' : ''}>${l}</label>`).join('');
@@ -936,8 +961,8 @@ function buildUI() {
   $('fCls').onchange = e => { S.cls = e.target.value; buildList(); };
   $('legend').innerHTML = Object.entries(CLS).map(([k, v]) => `<span><i style="background:${v[0]}"></i>${v[1]}</span>`).join('') +
     '<span>dashed = labelled · shaded = ours · ▲ = multipath pass</span>';
-  $('info').innerHTML = `<div class="meta">${M.events.filter(e => e.kind === 'DET' && e.cls !== 'MULTIPATH').length} events detected, ${M.mp.length} multipath passes. Pick an event on the left to see why it was marked.<br>` +
-    `Scroll over the plots to zoom, drag to pan, drag the strip at the top to jump around.</div>`;
+  $('info').innerHTML = `<p class="empty">Pick an event on the left to see why it was marked.</p>` +
+    `<p class="empty">${M.events.filter(e => e.kind === 'DET' && e.cls !== 'MULTIPATH').length} events detected, ${M.mp.length} multipath passes. Scroll over the plots to zoom, drag to pan, drag the strip at the top to jump around.</p>`;
   buildList();
 }
 async function loadLevel(res) {
