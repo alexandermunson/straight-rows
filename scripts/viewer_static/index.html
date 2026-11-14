@@ -71,6 +71,10 @@ kbd{background:var(--bg);border:1px solid var(--border);border-bottom-width:2px;
     <div id="plots"><canvas id="base"></canvas><canvas id="top"></canvas><div id="status">loading…</div></div>
   </main>
   <section>
+    <div class="row" id="mapbar"><button id="mapField" title="Zoom to the field">Field</button>
+      <button id="mapAll" title="Zoom out to show the whole of every interference-report area and the estimated source">Whole report area</button>
+      <button id="mapOut" title="Zoom out">−</button><button id="mapIn" title="Zoom in">+</button>
+      <small style="color:var(--muted)">scroll to zoom · drag to move · double-click to reset</small></div>
     <canvas id="map"></canvas>
     <div class="legend" id="legend"></div>
     <div id="info"></div>
@@ -94,6 +98,7 @@ const FIXSHORT = ['NO FIX', 'AUTO', 'DGPS', 'FLOAT', 'FIXED'];
 let M = null, EPOCH = 0, TOTAL = 259200;
 const LV = {};                                  // res -> {n, a:[tr][ch] Float32Array}
 const view = {t0: 0, t1: 259200}, target = {t0: 0, t1: 259200};
+const MV = {z: 1, cx: 0, cy: 0, all: false, s: 1, cl: 1};      // map view: zoom factor, pan (degrees), fit-to-report-areas flag
 const S = {vis: [true, true, true], truth: true, dets: true, mp: true, base: true, xlog: false, sel: -1,
            hoverX: null, hoverY: null, kind: {TRUTH: true, DET: true}, cls: 'ALL', drag: null};
 let dirtyBase = true, dirtyTop = true, lastFrame = 0, curRes = 60, P = [];       // P = last drawn panel geometry
@@ -406,11 +411,21 @@ function drawMap() {
     la0 = Math.min(la0, selSrc.lat - m); la1 = Math.max(la1, selSrc.lat + m);
     lo0 = Math.min(lo0, selSrc.lon - m / cl); lo1 = Math.max(lo1, selSrc.lon + m / cl);
   }
+  const shownRfi = M.rfi.filter(q => q.t >= view.t0 - 3600 && q.t <= view.t1 + 3600 && q.lat !== null);
+  if (MV.all) for (const q of shownRfi) {         // "Whole report area": include every report ellipse on screen in the bounds
+    const dla = q.a * 1000 / 111320 * 1.05, dlo = q.b * 1000 / 111320 / cl * 1.05;
+    la0 = Math.min(la0, q.lat - dla); la1 = Math.max(la1, q.lat + dla); lo0 = Math.min(lo0, q.lon - dlo); lo1 = Math.max(lo1, q.lon + dlo);
+  }
+  // user zoom / pan on top of the automatic bounds (MV.z > 1 zooms in; MV.cx, MV.cy shift the centre, in degrees)
+  { const mla = (la0 + la1) / 2 + MV.cy, mlo = (lo0 + lo1) / 2 + MV.cx, hla = (la1 - la0) / 2 / MV.z, hlo = (lo1 - lo0) / 2 / MV.z;
+    la0 = mla - hla; la1 = mla + hla; lo0 = mlo - hlo; lo1 = mlo + hlo; }
   const mw = (lo1 - lo0) * cl, mh = la1 - la0, s = Math.min((w - 16) / mw, (h - 30) / mh);
   const ox = (w - mw * s) / 2, oy = 22 + (h - 30 - mh * s) / 2;
   const px = lon => ox + (lon - lo0) * cl * s, py = lat => oy + (la1 - lat) * s;     // raw degrees
+  MV.s = s; MV.cl = cl;                             // pixels per degree of latitude, for the pointer handlers
   c.save(); c.beginPath(); c.rect(1, 18, w - 2, h - 19); c.clip();
-  c.strokeStyle = css('--grid'); c.lineWidth = 1; c.strokeRect(px(lo0), py(la1), mw * s, mh * s);
+  c.strokeStyle = css('--grid'); c.lineWidth = 1;   // outline of the field itself
+  c.strokeRect(px(F.lon[0]), py(F.lat[1]), (F.lon[1] - F.lon[0]) * cl * s, (F.lat[1] - F.lat[0]) * s);
   const span = view.t1 - view.t0, res = span <= 5400 ? 1 : span <= 64800 ? 10 : 60, L = LV[res];
   const sel = S.sel >= 0 ? M.events[S.sel] : null;
   if (L) {
@@ -429,7 +444,7 @@ function drawMap() {
     }
   }
   if (S.mp && M.mp_lat !== null) { const y = py(M.mp_lat); c.strokeStyle = '#7f7f7f'; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); c.setLineDash([]); c.fillStyle = css('--muted'); c.font = '10px system-ui'; c.textAlign = 'left'; c.fillText('multipath band (headland)', 6, y - 3); }
-  for (const q of M.rfi) if (q.t >= view.t0 - 3600 && q.t <= view.t1 + 3600 && q.lat !== null) {
+  for (const q of shownRfi) {
     const cx = px(q.lon), cy = py(q.lat), rpx = Math.max(2, q.b * 1000 / 111320 * s), rpy = Math.max(2, q.a * 1000 / 111320 * s);
     c.strokeStyle = '#e31a1c'; c.lineWidth = 1.3; c.beginPath(); c.ellipse(cx, cy, rpx, rpy, 0, 0, 7); c.stroke();
     c.beginPath(); c.moveTo(cx - 4, cy - 4); c.lineTo(cx + 4, cy + 4); c.moveTo(cx + 4, cy - 4); c.lineTo(cx - 4, cy + 4); c.stroke();
@@ -440,11 +455,19 @@ function drawMap() {
     c.fillStyle = '#d6272833'; c.strokeStyle = '#d62728'; c.lineWidth = 1.5; c.beginPath(); c.arc(cx, cy, r, 0, 7); c.fill(); c.stroke();
     c.beginPath(); c.moveTo(cx - 6, cy); c.lineTo(cx + 6, cy); c.moveTo(cx, cy - 6); c.lineTo(cx, cy + 6); c.stroke();
     c.fillStyle = '#d62728'; c.font = '10px system-ui'; c.textAlign = 'left';
-    c.fillText(`estimated source (±${selSrc.radius_m.toFixed(0)} m)`, cx + r + 4, cy + 3);
+    const lab = `estimated source (±${selSrc.radius_m.toFixed(0)} m)`, lw = c.measureText(lab).width;
+    if (cx + r + 6 + lw > w - 4) { c.textAlign = 'right'; c.fillText(lab, cx - r - 6, cy + 3); } else c.fillText(lab, cx + r + 6, cy + 3);
   }
   c.restore();
+  { // scale bar: a round distance that is roughly a fifth of the map width
+    const mPerPx = 111320 / s, want = mPerPx * w / 5, nice = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000].reduce((a, b) => Math.abs(b - want) < Math.abs(a - want) ? b : a);
+    const len = nice / mPerPx, x0 = w - 12 - len, y0 = h - 10;
+    c.strokeStyle = css('--text'); c.lineWidth = 1.5; c.beginPath(); c.moveTo(x0, y0 - 4); c.lineTo(x0, y0); c.lineTo(x0 + len, y0); c.lineTo(x0 + len, y0 - 4); c.stroke();
+    c.fillStyle = css('--text'); c.font = '10px system-ui'; c.textAlign = 'center'; c.textBaseline = 'bottom'; c.fillText(nice >= 1000 ? nice / 1000 + ' km' : nice + ' m', x0 + len / 2, y0 - 3);
+  }
   c.fillStyle = css('--muted'); c.font = '11px system-ui'; c.textAlign = 'left'; c.textBaseline = 'top';
   c.fillText('Field map · working samples in window' + (sel ? ` · ${sel.id} highlighted` : ''), 6, 4);
+  if (shownRfi.length && !MV.all) { c.fillStyle = '#e31a1c'; c.fillText('interference report area extends beyond this view: press “Whole report area”', 6, 18); }
 }
 
 // ------------------------------------------------------------------ frame loop (draws only when something changed)
@@ -543,6 +566,27 @@ function bindInput() {
     else if (k === '+' || k === '=') zoomAt((target.t0 + target.t1) / 2, 0.6); else if (k === '-') zoomAt((target.t0 + target.t1) / 2, 1.6);
     else if (k === '0') { S.sel = -1; setTarget(0, TOTAL); document.querySelectorAll('.ev.sel').forEach(n => n.classList.remove('sel')); }
   });
+  { // map: scroll to zoom about the pointer, drag to pan, double-click or the buttons to reset
+    const mp = $('map'); let md = null; mp.style.cursor = 'grab'; mp.style.touchAction = 'none';
+    const redraw = () => { dirtyBase = true; };
+    const zoomMap = (f, ex, ey) => {
+      const z1 = clamp(MV.z * f, 0.02, 200), r = mp.getBoundingClientRect();
+      if (ex !== undefined) {                       // keep the point under the pointer fixed while zooming
+        const ddx = (ex - r.left - r.width / 2) / (MV.s * MV.cl), ddy = -(ey - r.top - (22 + (r.height - 30) / 2)) / MV.s, k = 1 - MV.z / z1;
+        MV.cx += ddx * k; MV.cy += ddy * k;
+      }
+      MV.z = z1; redraw();
+    };
+    mp.addEventListener('wheel', e => { e.preventDefault(); zoomMap(Math.exp(-e.deltaY * 0.0016), e.clientX, e.clientY); }, {passive: false});
+    mp.addEventListener('pointerdown', e => { mp.setPointerCapture(e.pointerId); md = {x: e.clientX, y: e.clientY, cx: MV.cx, cy: MV.cy}; mp.style.cursor = 'grabbing'; });
+    mp.addEventListener('pointermove', e => { if (!md) return; MV.cx = md.cx - (e.clientX - md.x) / (MV.s * MV.cl); MV.cy = md.cy + (e.clientY - md.y) / MV.s; redraw(); });
+    mp.addEventListener('pointerup', () => { md = null; mp.style.cursor = 'grab'; });
+    const reset = all => { MV.z = 1; MV.cx = 0; MV.cy = 0; MV.all = all; $('mapAll').classList.toggle('on', all); $('mapField').classList.toggle('on', !all); redraw(); };
+    mp.addEventListener('dblclick', () => reset(MV.all));
+    $('mapField').onclick = () => reset(false); $('mapAll').onclick = () => reset(true);
+    $('mapIn').onclick = () => zoomMap(1.5); $('mapOut').onclick = () => zoomMap(1 / 1.5);
+    $('mapField').classList.add('on');
+  }
   window.addEventListener('resize', () => { dirtyBase = true; });
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { dirtyBase = true; });
 }
@@ -586,6 +630,7 @@ async function init() {
   if (h.has('t0') && h.has('t1')) setTarget(+h.get('t0'), +h.get('t1'), true);
   requestAnimationFrame(frame);
   await loadLevel(60); await loadLevel(10);
+  if (h.get('map') === 'all') $('mapAll').click();
   if (h.has('ev') && +h.get('ev') >= 0) select(+h.get('ev'), !h.has('t0'));
   $('status').textContent = 'loading 1 s data…';
   await loadLevel(1);
