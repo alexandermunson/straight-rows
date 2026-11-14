@@ -1,0 +1,154 @@
+{
+ "sub-inv-all": {
+  "tab": "",
+  "t0": 0,
+  "t1": 259200,
+  "res": 60,
+  "sel": -1,
+  "selId": null,
+  "vis": [
+   true,
+   true,
+   true
+  ],
+  "layers": {
+   "truth": true,
+   "dets": true,
+   "mp": true,
+   "base": true,
+   "xlog": false
+  },
+  "cls": "ALL",
+  "rows": 19,
+  "mapAll": false,
+  "mapZ": 1,
+  "opsDay": 2,
+  "spec": {
+   "ch": "mincn0",
+   "scope": 0,
+   "tr": 0,
+   "harm": true,
+   "vis": [
+    true,
+    true,
+    true
+   ]
+  },
+  "status": "60 s bins · 2026-05-04T00:00Z → 2026-05-07T00:00Z",
+  "open": "0"
+ },
+ "sub-inv-sel-jam": {
+  "tab": "",
+  "t0": 176940,
+  "t1": 187020,
+  "res": 1,
+  "sel": 13,
+  "selId": "D064",
+  "vis": [
+   true,
+   true,
+   true
+  ],
+  "layers": {
+   "truth": true,
+   "dets": true,
+   "mp": true,
+   "base": true,
+   "xlog": false
+  },
+  "cls": "ALL",
+  "rows": 19,
+  "mapAll": false,
+  "mapZ": 1,
+  "opsDay": 2,
+  "spec": {
+   "ch": "mincn0",
+   "scope": 0,
+   "tr": 0,
+   "harm": true,
+   "vis": [
+    true,
+    true,
+    true
+   ]
+  },
+  "status": "1 s bins · 2026-05-06T01:09Z → 2026-05-06T03:57Z",
+  "open": "01"
+ },
+ "sub-ops-day3": {
+  "tab": "ops",
+  "t0": 0,
+  "t1": 259200,
+  "res": 60,
+  "sel": -1,
+  "selId": null,
+  "vis": [
+   true,
+   true,
+   true
+  ],
+  "layers": {
+   "truth": true,
+   "dets": true,
+   "mp": true,
+   "base": true,
+   "xlog": false
+  },
+  "cls": "ALL",
+  "rows": 19,
+  "mapAll": false,
+  "mapZ": 1,
+  "opsDay": 2,
+  "spec": {
+   "ch": "mincn0",
+   "scope": 0,
+   "tr": 0,
+   "harm": true,
+   "vis": [
+    true,
+    true,
+    true
+   ]
+  },
+  "status": "60 s bins · 2026-05-04T00:00Z → 2026-05-07T00:00Z",
+  "open": "0"
+ },
+ "sub-spec": {
+  "tab": "spec",
+  "t0": 0,
+  "t1": 259200,
+  "res": 60,
+  "sel": -1,
+  "selId": null,
+  "vis": [
+   true,
+   true,
+   true
+  ],
+  "layers": {
+   "truth": true,
+   "dets": true,
+   "mp": true,
+   "base": true,
+   "xlog": false
+  },
+  "cls": "ALL",
+  "rows": 19,
+  "mapAll": false,
+  "mapZ": 1,
+  "opsDay": 2,
+  "spec": {
+   "ch": "mincn0",
+   "scope": 0,
+   "tr": 0,
+   "harm": true,
+   "vis": [
+    true,
+    true,
+    true
+   ]
+  },
+  "status": "60 s bins · 2026-05-04T00:00Z → 2026-05-07T00:00Z",
+  "open": "0"
+ }
+}

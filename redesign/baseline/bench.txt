@@ -1,0 +1,34 @@
+serving http://127.0.0.1:8781/   (Ctrl+C to stop)
+PERF
+   parts: base 5.0 ms, strip 0.6 ms, map 1.6 ms
+72 h    res=60s  full redraw 6.9 ms  (145 fps)   hover layer 0.25 ms
+   parts: base 5.0 ms, strip 0.6 ms, map 0.6 ms
+24 h    res=10s  full redraw 6.2 ms  (162 fps)   hover layer 0.17 ms
+   parts: base 3.5 ms, strip 0.6 ms, map 0.1 ms
+6 h     res=10s  full redraw 4.5 ms  (225 fps)   hover layer 0.17 ms
+   parts: base 4.0 ms, strip 0.6 ms, map 0.1 ms
+1 h     res=1s  full redraw 4.7 ms  (212 fps)   hover layer 0.15 ms
+   parts: base 2.8 ms, strip 0.6 ms, map 0.1 ms
+10 min  res=1s  full redraw 3.5 ms  (286 fps)   hover layer 0.15 ms
+PERF
+   parts: base 4.8 ms, strip 0.6 ms, map 1.8 ms
+72 h    res=60s  full redraw 6.2 ms  (161 fps)   hover layer 0.20 ms
+   parts: base 4.6 ms, strip 0.6 ms, map 0.6 ms
+24 h    res=10s  full redraw 5.9 ms  (169 fps)   hover layer 0.15 ms
+   parts: base 3.1 ms, strip 0.5 ms, map 0.1 ms
+6 h     res=10s  full redraw 4.0 ms  (250 fps)   hover layer 0.15 ms
+   parts: base 3.5 ms, strip 0.6 ms, map 0.1 ms
+1 h     res=1s  full redraw 4.3 ms  (235 fps)   hover layer 0.15 ms
+   parts: base 2.5 ms, strip 0.5 ms, map 0.1 ms
+10 min  res=1s  full redraw 3.1 ms  (323 fps)   hover layer 0.15 ms
+PERF
+   parts: base 4.4 ms, strip 0.6 ms, map 1.6 ms
+72 h    res=60s  full redraw 5.9 ms  (170 fps)   hover layer 0.20 ms
+   parts: base 4.5 ms, strip 0.5 ms, map 0.6 ms
+24 h    res=10s  full redraw 5.7 ms  (175 fps)   hover layer 0.15 ms
+   parts: base 3.2 ms, strip 0.6 ms, map 0.1 ms
+6 h     res=10s  full redraw 4.0 ms  (253 fps)   hover layer 0.17 ms
+   parts: base 3.4 ms, strip 0.5 ms, map 0.1 ms
+1 h     res=1s  full redraw 4.1 ms  (242 fps)   hover layer 0.15 ms
+   parts: base 2.5 ms, strip 0.5 ms, map 0.1 ms
+10 min  res=1s  full redraw 3.1 ms  (325 fps)   hover layer 0.13 ms
